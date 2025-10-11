@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard – Simula SAEB</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { primary: { DEFAULT: '#2563eb' } } } }
+    };
+    (function () {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+
+  <!-- Chart.js e ApexCharts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+  <!-- Ícones -->
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10 text-primary">
+          <i class="ti ti-chart-bar text-2xl"></i>
+        </span>
+        <div>
+          <h1 class="text-2xl font-semibold">Dashboard – Simula SAEB</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Formato: 3 linhas de cabeçalho (Turma / Questão / Descritor)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btnRefresh" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
+          <i class="ti ti-refresh"></i> Recarregar
+        </button>
+        <button id="btnTheme" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
+          <i class="ti ti-moon-stars"></i> Tema
+        </button>
+        <button id="btnExportAll" class="px-3 py-2 rounded-xl bg-primary text-white hover:opacity-90 text-sm">
+          <i class="ti ti-download"></i> Exportar todos (PNG)
+        </button>
+      </div>
+    </header>
+
+    <!-- Alerta -->
+    <div id="alert" class="hidden mb-4 p-3 rounded-xl border border-red-300/60 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200">
+      <strong class="block">Erro ao carregar dados.</strong>
+      <span id="alertMsg" class="text-sm"></span>
+      <div class="mt-2 text-xs opacity-80">Verifique a URL do Apps Script e se a aba "Resultados" está no formato esperado.</div>
+    </div>
+
+    <!-- Filtros -->
+    <section class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-sm mb-1">Turma</label>
+        <select id="fTurma" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Questão</label>
+        <select id="fQuestao" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Descritor</label>
+        <select id="fDescritor" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button id="btnLimpar" class="w-full px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
+          Limpar filtros
+        </button>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="text-sm text-slate-500 dark:text-slate-400">Média Geral</div>
+        <div id="kpiMedia" class="text-3xl font-semibold">–</div>
+      </div>
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="text-sm text-slate-500 dark:text-slate-400">Itens (colunas)</div>
+        <div id="kpiItens" class="text-3xl font-semibold">–</div>
+      </div>
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="text-sm text-slate-500 dark:text-slate-400">Domínio Alto</div>
+        <div id="kpiAlto" class="text-3xl font-semibold">–</div>
+      </div>
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="text-sm text-slate-500 dark:text-slate-400">Atualizado em</div>
+        <div id="kpiAtualizado" class="text-lg font-medium">–</div>
+      </div>
+    </section>
+
+    <!-- Gráficos principais -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">Distribuição por Domínio</h3>
+          <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartDominio">
+            <i class="ti ti-download"></i> PNG
+          </button>
+        </div>
+        <canvas id="chartDominio" height="240"></canvas>
+      </div>
+
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">Média por Turma</h3>
+          <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartTurma">
+            <i class="ti ti-download"></i> PNG
+          </button>
+        </div>
+        <canvas id="chartTurma" height="240"></canvas>
+      </div>
+
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">Velocímetro (Média Geral)</h3>
+          <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gauge">
+            <i class="ti ti-download"></i> PNG
+          </button>
+        </div>
+        <div id="gauge" class="h-[260px]"></div>
+      </div>
+    </section>
+
+    <!-- Modo Comparação -->
+    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <h3 class="font-semibold">Modo de Comparação</h3>
+          <label class="inline-flex items-center cursor-pointer select-none ml-2">
+            <input id="cmpToggle" type="checkbox" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-200 peer-checked:bg-primary rounded-full relative after:content-[''] after:w-5 after:h-5 after:bg-white after:rounded-full after:absolute after:top-0.5 after:left-0.5 peer-checked:after:translate-x-5 after:transition"></div>
+          </label>
+        </div>
+        <div class="flex items-center gap-3">
+          <div>
+            <label class="block text-xs mb-1">Turma A</label>
+            <select id="cmpA" class="rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 min-w-[140px]"></select>
+          </div>
+          <div>
+            <label class="block text-xs mb-1">Turma B</label>
+            <select id="cmpB" class="rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 min-w-[140px]"></select>
+          </div>
+        </div>
+      </div>
+
+      <div id="cmpArea" class="mt-4 hidden">
+        <!-- KPIs lado a lado -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-sm text-slate-500 dark:text-slate-400">Média (Turma A)</div>
+            <div id="cmpKpiA" class="text-3xl font-semibold">–</div>
+          </div>
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-sm text-slate-500 dark:text-slate-400">Média (Turma B)</div>
+            <div id="cmpKpiB" class="text-3xl font-semibold">–</div>
+          </div>
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-sm text-slate-500 dark:text-slate-400">% Alto (A)</div>
+            <div id="cmpKpiAltoA" class="text-3xl font-semibold">–</div>
+          </div>
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-sm text-slate-500 dark:text-slate-400">% Alto (B)</div>
+            <div id="cmpKpiAltoB" class="text-3xl font-semibold">–</div>
+          </div>
+        </div>
+
+        <!-- Gauges A e B -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold">Velocímetro – Turma A</h4>
+              <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gaugeA">
+                <i class="ti ti-download"></i> PNG
+              </button>
+            </div>
+            <div id="gaugeA" class="h-[220px]"></div>
+          </div>
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold">Velocímetro – Turma B</h4>
+              <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gaugeB">
+                <i class="ti ti-download"></i> PNG
+              </button>
+            </div>
+            <div id="gaugeB" class="h-[220px]"></div>
+          </div>
+        </div>
+
+        <!-- Gráficos de comparação -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold">Comparação por Questão (A x B)</h4>
+              <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartCompareQ">
+                <i class="ti ti-download"></i> PNG
+              </button>
+            </div>
+            <canvas id="chartCompareQ" height="260"></canvas>
+          </div>
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold">Distribuição por Domínio (A x B)</h4>
+              <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartCompareDom">
+                <i class="ti ti-download"></i> PNG
+              </button>
+            </div>
+            <canvas id="chartCompareDom" height="260"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabela -->
+    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-10">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">Dados (amostra)</h3>
+        <button id="btnCSV" class="px-3 py-2 rounded-xl bg-primary text-white hover:opacity-90 text-sm">
+          <i class="ti ti-download"></i> Exportar CSV (filtro)
+        </button>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-100 dark:bg-slate-700/50">
+            <tr>
+              <th class="text-left px-3 py-2">Turma</th>
+              <th class="text-left px-3 py-2">Questão</th>
+              <th class="text-left px-3 py-2">Descritor</th>
+              <th class="text-left px-3 py-2">Acertos</th>
+              <th class="text-left px-3 py-2">Percentual</th>
+              <th class="text-left px-3 py-2">Domínio</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===================== JS ===================== -->
+  <script>
+    /********** CONFIG **********/
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxA2Lpb17nwkfCeGIRzw3Nq9OZlwKmzMc7Br7BPEExYoQw1lzdTP29cEWzxsNvW_qT8/exec';
+
+    /********** CORES **********/
+    const DOMAIN_COLORS = { Baixo: '#ef4444', 'Médio': '#f59e0b', Alto: '#16a34a', Indefinido: '#6b7280' };
+    const TURMA_PALETTE = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6','#a855f7','#10b981','#eab308','#64748b'];
+    let TURMA_COLORS = new Map();
+    const hexToRgba = (hex, a=0.9) => { const m=hex.replace('#',''); const n=parseInt(m,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
+
+    const nfPct = new Intl.NumberFormat('pt-BR',{style:'percent', minimumFractionDigits:1, maximumFractionDigits:1});
+    const nfInt = new Intl.NumberFormat('pt-BR');
+
+    // domínio por valor
+    const domainByValue = (v)=> v>=75?'Alto':(v>=35?'Médio':'Baixo');
+    const colorByValue  = (v)=> DOMAIN_COLORS[domainByValue(v)] || '#94a3b8';
+
+    /********** ESTADO **********/
+    let DATASET = []; let UPDATED_AT = null;
+    let chartDominio, chartTurma, gauge, cmpChartQ, cmpChartDom, gaugeA, gaugeB;
+
+    /********** ELEMENTOS **********/
+    const fTurma = document.getElementById('fTurma');
+    const fQuestao = document.getElementById('fQuestao');
+    const fDescritor = document.getElementById('fDescritor');
+    const tbody = document.getElementById('tbody');
+    const kpiMedia = document.getElementById('kpiMedia');
+    const kpiItens = document.getElementById('kpiItens');
+    const kpiAlto = document.getElementById('kpiAlto');
+    const kpiAtualizado = document.getElementById('kpiAtualizado');
+    const alertBox = document.getElementById('alert');
+    const alertMsg = document.getElementById('alertMsg');
+
+    const btnTheme = document.getElementById('btnTheme');
+    const btnExportAll = document.getElementById('btnExportAll');
+
+    const cmpToggle = document.getElementById('cmpToggle');
+    const cmpArea = document.getElementById('cmpArea');
+    const cmpA = document.getElementById('cmpA');
+    const cmpB = document.getElementById('cmpB');
+    const cmpKpiA = document.getElementById('cmpKpiA');
+    const cmpKpiB = document.getElementById('cmpKpiB');
+    const cmpKpiAltoA = document.getElementById('cmpKpiAltoA');
+    const cmpKpiAltoB = document.getElementById('cmpKpiAltoB');
+
+    /********** PLUGIN: rótulos externos (donut) **********/
+    const OutLabelPlugin = {
+      id: 'outlabels',
+      afterDatasetsDraw(chart) {
+        if (chart.config.type !== 'doughnut') return;
+        const {ctx} = chart, meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data?.length) return;
+        const ds = chart.data.datasets[0]; const labels = chart.data.labels || []; const values = ds.data || [];
+        const total = values.reduce((a,b)=>a+(b||0),0) || 1;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#e5e7eb' : '#111827';
+        const lineColor = isDark ? 'rgba(148,163,184,.65)' : 'rgba(100,116,139,.75)';
+
+        ctx.save(); ctx.lineWidth = 1;
+        meta.data.forEach((arc, i) => {
+          const v = values[i]; if (!v) return;
+          const {x:cx,y:cy,startAngle,endAngle,outerRadius} = arc.getProps(['x','y','startAngle','endAngle','outerRadius'], true);
+          const a = (startAngle + endAngle)/2;
+          const x1 = cx + Math.cos(a)*outerRadius, y1 = cy + Math.sin(a)*outerRadius;
+          const x2 = cx + Math.cos(a)*(outerRadius+16), y2 = cy + Math.sin(a)*(outerRadius+16);
+          const right = Math.cos(a) >= 0; const x3 = x2 + (right?14:-14), y3 = y2;
+
+          ctx.strokeStyle = lineColor; ctx.fillStyle = lineColor;
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x3,y3,2.5,0,Math.PI*2); ctx.fill();
+
+          ctx.fillStyle = textColor; ctx.textAlign = right?'left':'right'; ctx.textBaseline='middle';
+          ctx.font = `600 12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial`; ctx.fillText(labels[i] ?? '', x3 + (right?6:-6), y3 - 8);
+          ctx.font = `400 11px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial`; ctx.globalAlpha=.9; ctx.fillText((v/total*100).toFixed(1)+'%', x3 + (right?6:-6), y3 + 8); ctx.globalAlpha=1;
+        });
+        ctx.restore();
+      }
+    };
+    Chart.register(OutLabelPlugin);
+
+    /********** EVENTOS **********/
+    btnTheme.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      renderCharts(); renderCompare();
+    });
+    document.getElementById('btnRefresh').addEventListener('click', loadData);
+    document.getElementById('btnLimpar').addEventListener('click', () => { [fTurma, fQuestao, fDescritor].forEach(sel => sel.value = ''); updateAll(); });
+    document.getElementById('btnCSV').addEventListener('click', exportCSV);
+    [fTurma, fQuestao, fDescritor].forEach(sel => sel.addEventListener('change', updateAll));
+
+    document.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.export-btn'); if (!btn) return;
+      exportPNG(btn.getAttribute('data-target'));
+    });
+    btnExportAll.addEventListener('click', () => {
+      ['chartDominio','chartTurma','gauge'].forEach(exportPNG);
+      if (!cmpArea.classList.contains('hidden')) ['gaugeA','gaugeB','chartCompareQ','chartCompareDom'].forEach(exportPNG);
+    });
+
+    /********** HELPERS **********/
+    function showError(msg){ alertMsg.textContent=msg||'Falha desconhecida.'; alertBox.classList.remove('hidden'); }
+    function hideError(){ alertBox.classList.add('hidden'); alertMsg.textContent=''; }
+    const unique = arr => [...new Set(arr.filter(v => v !== '' && v != null))];
+    function applyFilters(){ return DATASET.filter(r => (!fTurma.value || r.Turma==fTurma.value) && (!fQuestao.value || r.Questao==fQuestao.value) && (!fDescritor.value || r.Descritor==fDescritor.value)); }
+    function avgPercent(rows){ const nums=rows.map(x=>Number(x.Percentual)).filter(Number.isFinite); return nums.length? nums.reduce((a,b)=>a+b,0)/nums.length : NaN; }
+    function dominioCounts(rows){ const c={Baixo:0,'Médio':0,Alto:0,Indefinido:0}; rows.forEach(r=>c[r.Dominio]=(c[r.Dominio]||0)+1); return c; }
+    function groupMean(rows,key){ const m=new Map(); rows.forEach(r=>{const k=String(r[key]??''); const prev=m.get(k)||{sum:0,n:0}; const p=Number(r.Percentual); if(Number.isFinite(p)){prev.sum+=p; prev.n++; m.set(k,prev);} }); return [...m.entries()].map(([label,{sum,n}])=>({label,value:n?sum/n:NaN})).sort((a,b)=>a.label.localeCompare(b.label,'pt-BR',{numeric:true})); }
+    function toCSV(rows){ const h=['Turma','Questao','Descritor','Acertos','Percentual','Dominio']; const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`; const L=[h.join(';')]; rows.forEach(r=>{const pct=Number.isFinite(Number(r.Percentual))?Number(r.Percentual).toFixed(2).replace('.',',')+'%':''; L.push([r.Turma,r.Questao,r.Descritor,r.Acertos??'',pct,r.Dominio].map(esc).join(';'));}); return L.join('\n'); }
+    function exportCSV(){ const blob=new Blob([toCSV(applyFilters())],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='dados_filtrados.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+    function triggerDownload(uri, filename){ const a=document.createElement('a'); a.href=uri; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
+    function chartToPNG(chart,name){ try{ triggerDownload(chart.canvas.toDataURL('image/png',1.0), `${name}.png`);}catch(e){console.error(e);} }
+    async function apexToPNG(apex, name){ try{ const r=await apex.dataURI(); triggerDownload(r.imgURI, `${name}.png`);} catch(e){ console.error(e); } }
+    function exportPNG(target){
+      switch(target){
+        case 'chartDominio': if(chartDominio) chartToPNG(chartDominio,'distribuicao-dominio'); break;
+        case 'chartTurma': if(chartTurma) chartToPNG(chartTurma,'media-por-turma'); break;
+        case 'gauge': if(gauge) apexToPNG(gauge,'gauge-media-geral'); break;
+        case 'gaugeA': if(gaugeA) apexToPNG(gaugeA,'gauge-turma-a'); break;
+        case 'gaugeB': if(gaugeB) apexToPNG(gaugeB,'gauge-turma-b'); break;
+        case 'chartCompareQ': if(cmpChartQ) chartToPNG(cmpChartQ,'comparacao-questao'); break;
+        case 'chartCompareDom': if(cmpChartDom) chartToPNG(cmpChartDom,'comparacao-dominio'); break;
+      }
+    }
+
+    /********** LOAD **********/
+    async function loadData(){
+      hideError();
+      try{
+        const ping = await fetch(WEB_APP_URL+'?action=ping'); const t1 = await ping.text();
+        if(!ping.ok) throw new Error('Ping HTTP '+ping.status);
+        try{ JSON.parse(t1); }catch{ throw new Error('Ping não retornou JSON. Reimplante o Web App (Qualquer pessoa).'); }
+
+        const r = await fetch(WEB_APP_URL+'?action=dataset&nocache=1'); const t = await r.text();
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        let json; try{ json=JSON.parse(t);}catch{ throw new Error('Dataset não retornou JSON válido.'); }
+        if(!json.ok) throw new Error(json.error||'Resposta inválida');
+
+        UPDATED_AT = json.updatedAt? new Date(json.updatedAt): null;
+        DATASET = Array.isArray(json.data)? json.data : [];
+
+        const turmas = [...new Set(DATASET.map(r=>r.Turma).filter(Boolean))].filter(t=>String(t).trim().toLowerCase()!=='total');
+        TURMA_COLORS = new Map(turmas.map((t,i)=>[t, TURMA_PALETTE[i%TURMA_PALETTE.length]]));
+
+        fillSelect(fTurma, turmas, 'Todas');
+        fillSelect(fQuestao, [...new Set(DATASET.map(r=>r.Questao).filter(Boolean))], 'Todas');
+        fillSelect(fDescritor, [...new Set(DATASET.map(r=>r.Descritor).filter(Boolean))], 'Todos');
+
+        fillSelect(cmpA, turmas, null); fillSelect(cmpB, turmas, null);
+        if(turmas.length>=2){ cmpA.value = turmas[0]; cmpB.value = turmas[1]; }
+
+        // habilita/desabilita o modo comparação conforme nº de turmas
+        cmpToggle.disabled = turmas.length < 2;
+        cmpArea.classList.toggle('hidden', !(cmpToggle.checked && turmas.length>=2));
+
+        updateAll();
+      }catch(err){ console.error(err); showError('Não foi possível obter os dados. '+err.message); }
+    }
+    function fillSelect(select, options, allLabel){
+      const cur=select.value; select.innerHTML='';
+      if(allLabel){ const o=document.createElement('option'); o.value=''; o.textContent=allLabel; select.appendChild(o); }
+      options.sort((a,b)=>String(a).localeCompare(String(b),'pt-BR',{numeric:true})).forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; select.appendChild(o); });
+      if(cur && options.includes(cur)) select.value=cur;
+    }
+
+    /********** RENDER PRINCIPAL **********/
+    function renderCharts(){
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#e5e7eb' : '#111827';
+      const gridColor = isDark ? 'rgba(148,163,184,.25)' : 'rgba(100,116,139,.25)';
+      const filtered = applyFilters();
+
+      // DONUT
+      const c = dominioCounts(filtered);
+      const domLabels = ['Baixo','Médio','Alto'];
+      const domValues = domLabels.map(l=>c[l]||0);
+      const domColors = domLabels.map(l=>DOMAIN_COLORS[l]||'#94a3b8');
+
+      if(chartDominio) chartDominio.destroy();
+      chartDominio = new Chart(document.getElementById('chartDominio'), {
+        type:'doughnut',
+        data:{ labels: domLabels, datasets:[{ data: domValues, backgroundColor: domColors, hoverOffset: 4 }] },
+        options:{
+          cutout:'55%',
+          layout:{ padding:{ left:72, right:72, top:24, bottom:24 } },
+          plugins:{
+            legend:{ display:false },
+            tooltip:{ callbacks:{ label:(ctx)=>{ const total=domValues.reduce((a,b)=>a+(b||0),0)||1; const p=ctx.raw/total; return `${ctx.label}: ${ctx.raw} (${(p).toLocaleString('pt-BR',{style:'percent',maximumFractionDigits:1})})`; } } },
+            outlabels:{}
+          }
+        }
+      });
+
+      // BARRAS: Média por Turma (título "Média %")
+      const byTurma = groupMean(filtered,'Turma');
+      if(chartTurma) chartTurma.destroy();
+      chartTurma = new Chart(document.getElementById('chartTurma'), {
+        type:'bar',
+        data:{
+          labels: byTurma.map(d=>d.label),
+          datasets:[{
+            label:'Média %',
+            data: byTurma.map(d=>Number.isFinite(d.value)?d.value:0),
+            backgroundColor: byTurma.map(d=>hexToRgba(TURMA_COLORS.get(d.label)||TURMA_PALETTE[0], .85)),
+            borderColor: byTurma.map(d=>TURMA_COLORS.get(d.label)||TURMA_PALETTE[0]),
+            borderWidth:1
+          }]
+        },
+        options:{
+          layout: { padding: { left: 8, right: 8, top: 12, bottom: 4 } },
+          scales:{
+            x:{ ticks:{ color:textColor }, grid:{ color:gridColor } },
+            y:{ beginAtZero:true, max:100, ticks:{ color:textColor, callback:v=>v+'%' }, grid:{ color:gridColor } }
+          },
+          plugins:{
+            legend:{ display:false },
+            title:{ display:true, text:'Média %', color:textColor, font:{ size:12, weight:'600' }, padding:{ bottom:6 } }
+          }
+        }
+      });
+
+      // GAUGE principal (cor por faixa)
+      const media = avgPercent(filtered);
+      const value = Number.isFinite(media) ? media : 0;
+      const gaugeOptions = radialOpts(value, isDark, textColor);
+      if (gauge) { gauge.updateOptions(gaugeOptions); gauge.updateSeries([value]); }
+      else { gauge = new ApexCharts(document.querySelector('#gauge'), gaugeOptions); gauge.render(); }
+    }
+
+    // Opções do gauge com cor por faixa
+    function radialOpts(value, isDark, textColor){
+      return {
+        series: [value],
+        chart: { type: 'radialBar', height: 260, sparkline: { enabled: true }, toolbar: { show: false } },
+        plotOptions: {
+          radialBar: {
+            startAngle: -120, endAngle: 120,
+            hollow: { size: '60%' },
+            track: { background: isDark ? 'rgba(30,41,59,.35)' : 'rgba(15,23,42,.08)' },
+            dataLabels: {
+              name: { show: false },
+              value: { formatter: (v) => (Number(v).toFixed(1)) + '%', color: textColor, fontSize: '20px', fontWeight: 700, offsetY: 6 }
+            }
+          }
+        },
+        colors: [ colorByValue(value) ]
+      };
+    }
+
+    function renderTable(){
+      const filtered = applyFilters();
+      tbody.innerHTML=''; const maxRows=200;
+      filtered.slice(0,maxRows).forEach(r=>{
+        const pct = Number.isFinite(Number(r.Percentual)) ? (Number(r.Percentual).toFixed(1)).replace('.', ',')+'%' : '';
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td class="px-3 py-2">${r.Turma??''}</td>
+          <td class="px-3 py-2">${r.Questao??''}</td>
+          <td class="px-3 py-2">${r.Descritor??''}</td>
+          <td class="px-3 py-2">${r.Acertos??''}</td>
+          <td class="px-3 py-2">${pct}</td>
+          <td class="px-3 py-2"><span class="px-2 py-1 rounded-full text-xs ${badgeClass(r.Dominio)}">${r.Dominio}</span></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function badgeClass(dom){
+      if(dom==='Alto') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      if(dom==='Médio') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+      if(dom==='Baixo') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      return 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300';
+    }
+    function renderKPIs(){
+      const filtered = applyFilters();
+      const media = avgPercent(filtered);
+      const c = dominioCounts(filtered);
+      kpiMedia.textContent = Number.isFinite(media) ? (media/100).toLocaleString('pt-BR',{style:'percent',minimumFractionDigits:1}) : (filtered.length?'0%':'–');
+      kpiItens.textContent = nfInt.format(filtered.length);
+      const pAlto = filtered.length ? (c.Alto||0)/filtered.length : 0;
+      kpiAlto.textContent = nfPct.format(pAlto);
+      kpiAtualizado.textContent = UPDATED_AT ? new Date(UPDATED_AT).toLocaleString('pt-BR') : '—';
+    }
+    function updateAll(){ renderKPIs(); renderCharts(); renderTable(); if(cmpToggle.checked && !cmpToggle.disabled) renderCompare(); }
+
+    /********** MODO COMPARAÇÃO **********/
+    cmpToggle.addEventListener('change', () => {
+      const can = !cmpToggle.disabled && cmpToggle.checked;
+      cmpArea.classList.toggle('hidden', !can);
+      if (can) renderCompare(); else destroyCompare();
+    });
+    [cmpA, cmpB].forEach(sel => sel.addEventListener('change', renderCompare));
+
+    function renderCompare(){
+      if (cmpToggle.disabled || !cmpToggle.checked) return;
+
+      const turmaA = cmpA.value, turmaB = cmpB.value;
+      if(!turmaA || !turmaB || turmaA===turmaB){
+        destroyCompare(); cmpKpiA.textContent='–'; cmpKpiB.textContent='–'; cmpKpiAltoA.textContent='–'; cmpKpiAltoB.textContent='–'; return;
+      }
+
+      const rowsA = DATASET.filter(r=>String(r.Turma)===String(turmaA));
+      const rowsB = DATASET.filter(r=>String(r.Turma)===String(turmaB));
+
+      const mediaA = avgPercent(rowsA), mediaB = avgPercent(rowsB);
+      const cA = dominioCounts(rowsA), cB = dominioCounts(rowsB);
+
+      cmpKpiA.textContent = Number.isFinite(mediaA) ? (mediaA/100).toLocaleString('pt-BR',{style:'percent',minimumFractionDigits:1}) : '–';
+      cmpKpiB.textContent = Number.isFinite(mediaB) ? (mediaB/100).toLocaleString('pt-BR',{style:'percent',minimumFractionDigits:1}) : '–';
+      cmpKpiAltoA.textContent = nfPct.format(rowsA.length ? (cA.Alto||0)/rowsA.length : 0);
+      cmpKpiAltoB.textContent = nfPct.format(rowsB.length ? (cB.Alto||0)/rowsB.length : 0);
+
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#e5e7eb' : '#111827';
+      const gridColor = isDark ? 'rgba(148,163,184,.25)' : 'rgba(100,116,139,.25)';
+
+      const colorA = TURMA_COLORS.get(turmaA)||TURMA_PALETTE[0];
+      const colorB = TURMA_COLORS.get(turmaB)||TURMA_PALETTE[1];
+
+      // Gauges (agora atualizam options **e** series)
+      const valA = Number.isFinite(mediaA)?mediaA:0;
+      const valB = Number.isFinite(mediaB)?mediaB:0;
+
+      if(!gaugeA){ gaugeA = new ApexCharts(document.querySelector('#gaugeA'), radialOpts(valA, isDark, textColor)); gaugeA.render(); }
+      else { gaugeA.updateOptions(radialOpts(valA, isDark, textColor)); gaugeA.updateSeries([valA]); }
+
+      if(!gaugeB){ gaugeB = new ApexCharts(document.querySelector('#gaugeB'), radialOpts(valB, isDark, textColor)); gaugeB.render(); }
+      else { gaugeB.updateOptions(radialOpts(valB, isDark, textColor)); gaugeB.updateSeries([valB]); }
+
+      // Barras por Questão
+      const mapA=new Map(), mapB=new Map();
+      rowsA.forEach(r=>mapA.set(String(r.Questao), Number(r.Percentual)));
+      rowsB.forEach(r=>mapB.set(String(r.Questao), Number(r.Percentual)));
+      const allQ = unique([...mapA.keys(),...mapB.keys()]).sort((a,b)=>{ const na=parseInt(String(a).replace(/\D/g,''))||0; const nb=parseInt(String(b).replace(/\D/g,''))||0; return na===nb?String(a).localeCompare(String(b),'pt-BR',{numeric:true}):na-nb; });
+      const dataA = allQ.map(q=>Number.isFinite(mapA.get(q))?mapA.get(q):null);
+      const dataB = allQ.map(q=>Number.isFinite(mapB.get(q))?mapB.get(q):null);
+
+      if(cmpChartQ) cmpChartQ.destroy();
+      cmpChartQ = new Chart(document.getElementById('chartCompareQ'), {
+        type:'bar',
+        data:{
+          labels: allQ,
+          datasets:[
+            { label:`Turma A – ${turmaA}`, data:dataA, backgroundColor:hexToRgba(colorA,.85), borderColor:colorA, borderWidth:1 },
+            { label:`Turma B – ${turmaB}`, data:dataB, backgroundColor:hexToRgba(colorB,.85), borderColor:colorB, borderWidth:1 }
+          ]
+        },
+        options:{
+          scales:{ x:{ ticks:{ color:textColor }, grid:{ color:gridColor } }, y:{ beginAtZero:true, max:100, ticks:{ color:textColor, callback:v=>v+'%' }, grid:{ color:gridColor } } },
+          plugins:{ legend:{ labels:{ color:textColor } } }
+        }
+      });
+
+      // Distribuição por Domínio (A x B) — cores das turmas
+      const domLabels = ['Baixo','Médio','Alto'];
+      const vA = domLabels.map(l=>cA[l]||0), vB = domLabels.map(l=>cB[l]||0);
+
+      if(cmpChartDom) cmpChartDom.destroy();
+      cmpChartDom = new Chart(document.getElementById('chartCompareDom'), {
+        type:'bar',
+        data:{
+          labels: domLabels,
+          datasets:[
+            { label:`Turma A – ${turmaA}`, data:vA, backgroundColor:hexToRgba(colorA,.85), borderColor:colorA, borderWidth:1 },
+            { label:`Turma B – ${turmaB}`, data:vB, backgroundColor:hexToRgba(colorB,.85), borderColor:colorB, borderWidth:1 }
+          ]
+        },
+        options:{
+          scales:{ x:{ ticks:{ color:textColor }, grid:{ color:gridColor } }, y:{ beginAtZero:true, ticks:{ color:textColor, precision:0 }, grid:{ color:gridColor } } },
+          plugins:{ legend:{ labels:{ color:textColor } } }
+        }
+      });
+    }
+    function destroyCompare(){
+      if(cmpChartQ){cmpChartQ.destroy(); cmpChartQ=null;}
+      if(cmpChartDom){cmpChartDom.destroy(); cmpChartDom=null;}
+      if(gaugeA){gaugeA.destroy(); gaugeA=null;}
+      if(gaugeB){gaugeB.destroy(); gaugeB=null;}
+    }
+
+    // Init
+    loadData();
+  </script>
+</body>
+</html>
