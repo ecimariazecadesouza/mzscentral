@@ -2,7 +2,7 @@
 <html lang="pt-BR" class="h-full">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
   <title>Dashboard – Simula SAEB</title>
 
   <!-- Tailwind -->
@@ -10,7 +10,25 @@
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { colors: { primary: { DEFAULT: '#2563eb' } } } }
+      theme: { 
+        extend: { 
+          colors: { 
+            primary: { DEFAULT: '#2563eb' },
+            matematica: '#3b82f6',
+            portugues: '#8b5cf6'
+          },
+          animation: {
+            'pulse': 'pulse 2s infinite',
+            'fade-in': 'fadeIn 0.5s ease-in-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            }
+          }
+        } 
+      }
     };
     (function () {
       const saved = localStorage.getItem('theme');
@@ -20,28 +38,174 @@
     })();
   </script>
 
-  <!-- Chart.js e ApexCharts -->
+  <!-- Chart.js, ApexCharts e DataLabels -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
   <!-- Ícones -->
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
+
+  <style>
+    .chart-container {
+      transition: all 0.3s ease;
+    }
+    
+    .chart-container:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .badge-matematica {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+    }
+    
+    .badge-portugues {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+    }
+    
+    .badge-alto {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: white;
+    }
+    
+    .badge-medio {
+      background: linear-gradient(135deg, #f59e0b, #eab308);
+      color: white;
+    }
+    
+    .badge-baixo {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+    }
+    
+    .mobile-menu-transition {
+      transition: transform 0.3s ease-in-out;
+    }
+    
+    /* Destaque para a matéria selecionada */
+    .materia-active {
+      border-left: 4px solid;
+      font-weight: 600;
+    }
+    
+    .matematica-active {
+      border-left-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .portugues-active {
+      border-left-color: #8b5cf6;
+      background: rgba(139, 92, 246, 0.05);
+    }
+
+    /* Melhorar a legibilidade dos rótulos de dados */
+    .chartjs-plugin-datalabels {
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-  <div class="max-w-7xl mx-auto px-4 py-6">
+  <!-- Menu Mobile -->
+  <div id="mobileMenu" class="lg:hidden fixed inset-0 bg-white dark:bg-slate-900 z-50 mobile-menu-transition transform translate-x-full">
+    <div class="p-4 h-full flex flex-col">
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10 text-primary">
+            <i class="ti ti-chart-bar text-2xl"></i>
+          </span>
+          <div>
+            <h1 class="text-xl font-semibold">Dashboard SAEB</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400" id="mobileMateriaInfo">Carregando...</p>
+          </div>
+        </div>
+        <button id="btnCloseMenu" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <i class="ti ti-x text-xl"></i>
+        </button>
+      </div>
+      
+      <!-- Seletor de Matéria no Mobile -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium mb-2">Disciplina</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="materia-btn px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-left materia-active matematica-active" data-materia="matematica">
+            <div class="flex items-center gap-2">
+              <i class="ti ti-math"></i>
+              <span>Matemática</span>
+            </div>
+          </button>
+          <button class="materia-btn px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-left" data-materia="portugues">
+            <div class="flex items-center gap-2">
+              <i class="ti ti-language"></i>
+              <span>Português</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      
+      <div class="space-y-4 flex-1">
+        <button id="btnRefreshMobile" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center gap-3 text-left">
+          <i class="ti ti-refresh"></i> Recarregar Dados
+        </button>
+        <button id="btnThemeMobile" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center gap-3 text-left">
+          <i class="ti ti-moon-stars"></i> Alternar Tema
+        </button>
+        <button id="btnExportAllMobile" class="w-full px-4 py-3 rounded-xl bg-primary text-white flex items-center gap-3 text-left">
+          <i class="ti ti-download"></i> Exportar Todos (PNG)
+        </button>
+      </div>
+      
+      <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+        <div class="text-xs text-slate-500 dark:text-slate-400 text-center">
+          Dashboard Simula SAEB - <span id="mobileMateriaBadge">Matemática</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão Menu Mobile -->
+  <div class="lg:hidden fixed bottom-4 right-4 z-40">
+    <button id="btnMobileMenu" class="w-14 h-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center">
+      <i class="ti ti-menu-2 text-xl"></i>
+    </button>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
     <!-- Header -->
-    <header class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <span class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10 text-primary">
-          <i class="ti ti-chart-bar text-2xl"></i>
+    <header class="flex items-center justify-between mb-4 sm:mb-6">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-primary/10 text-primary">
+          <i class="ti ti-chart-bar text-xl sm:text-2xl"></i>
         </span>
         <div>
-          <h1 class="text-2xl font-semibold">Dashboard – Simula SAEB</h1>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Formato: 3 linhas de cabeçalho (Turma / Questão / Descritor)</p>
+          <h1 class="text-lg sm:text-2xl font-semibold">Dashboard – Simula SAEB</h1>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
+            <span id="materiaInfo">Matemática - Formato: 3 linhas de cabeçalho</span>
+          </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="hidden lg:flex items-center gap-2">
+        <!-- Seletor de Matéria -->
+        <div class="flex items-center gap-2 mr-4">
+          <button class="materia-btn px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm materia-active matematica-active flex items-center gap-2" data-materia="matematica">
+            <i class="ti ti-math"></i>
+            <span>Matemática</span>
+          </button>
+          <button class="materia-btn px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm flex items-center gap-2" data-materia="portugues">
+            <i class="ti ti-language"></i>
+            <span>Português</span>
+          </button>
+        </div>
+
         <button id="btnRefresh" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
           <i class="ti ti-refresh"></i> Recarregar
         </button>
@@ -58,10 +222,17 @@
     <div id="alert" class="hidden mb-4 p-3 rounded-xl border border-red-300/60 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200">
       <strong class="block">Erro ao carregar dados.</strong>
       <span id="alertMsg" class="text-sm"></span>
-      <div class="mt-2 text-xs opacity-80">Verifique a URL do Apps Script e se a aba "Resultados" está no formato esperado.</div>
+      <div class="mt-2 text-xs opacity-80">Verifique a URL do Apps Script e se a aba da matéria está no formato esperado.</div>
     </div>
 
-    <!-- Filtros -->
+    <!-- Badge de Matéria -->
+    <div class="mb-4 flex justify-center">
+      <span id="materiaBadge" class="badge-matematica px-4 py-2 rounded-full text-sm font-medium">
+        <i class="ti ti-math mr-1"></i> Matemática
+      </span>
+    </div>
+
+    <!-- Filtros Básicos -->
     <section class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
       <div>
         <label class="block text-sm mb-1">Turma</label>
@@ -89,28 +260,28 @@
     </section>
 
     <!-- KPIs -->
-    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-        <div class="text-sm text-slate-500 dark:text-slate-400">Média Geral</div>
-        <div id="kpiMedia" class="text-3xl font-semibold">–</div>
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
+        <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Média Geral</div>
+        <div id="kpiMedia" class="text-xl sm:text-3xl font-semibold">–</div>
       </div>
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-        <div class="text-sm text-slate-500 dark:text-slate-400">Itens (colunas)</div>
-        <div id="kpiItens" class="text-3xl font-semibold">–</div>
+      <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
+        <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Itens (colunas)</div>
+        <div id="kpiItens" class="text-xl sm:text-3xl font-semibold">–</div>
       </div>
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-        <div class="text-sm text-slate-500 dark:text-slate-400">Domínio Alto</div>
-        <div id="kpiAlto" class="text-3xl font-semibold">–</div>
+      <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
+        <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Domínio Alto</div>
+        <div id="kpiAlto" class="text-xl sm:text-3xl font-semibold">–</div>
       </div>
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-        <div class="text-sm text-slate-500 dark:text-slate-400">Atualizado em</div>
-        <div id="kpiAtualizado" class="text-lg font-medium">–</div>
+      <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
+        <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Atualizado em</div>
+        <div id="kpiAtualizado" class="text-sm sm:text-lg font-medium">–</div>
       </div>
     </section>
 
     <!-- Gráficos principais -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container relative">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold">Distribuição por Domínio</h3>
           <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartDominio">
@@ -120,7 +291,7 @@
         <canvas id="chartDominio" height="240"></canvas>
       </div>
 
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container relative">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold">Média por Turma</h3>
           <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartTurma">
@@ -130,7 +301,7 @@
         <canvas id="chartTurma" height="240"></canvas>
       </div>
 
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm relative">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container relative">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold">Velocímetro (Média Geral)</h3>
           <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gauge">
@@ -153,11 +324,11 @@
         </div>
         <div class="flex items-center gap-3">
           <div>
-            <label class="block text-xs mb-1">Turma A</label>
+            <label class="block text-xs mb-1">Turma 1</label>
             <select id="cmpA" class="rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 min-w-[140px]"></select>
           </div>
           <div>
-            <label class="block text-xs mb-1">Turma B</label>
+            <label class="block text-xs mb-1">Turma 2</label>
             <select id="cmpB" class="rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 min-w-[140px]"></select>
           </div>
         </div>
@@ -165,39 +336,39 @@
 
       <div id="cmpArea" class="mt-4 hidden">
         <!-- KPIs lado a lado -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-            <div class="text-sm text-slate-500 dark:text-slate-400">Média (Turma A)</div>
-            <div id="cmpKpiA" class="text-3xl font-semibold">–</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
+          <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Média (Turma 1)</div>
+            <div id="cmpKpiA" class="text-xl sm:text-3xl font-semibold">–</div>
           </div>
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-            <div class="text-sm text-slate-500 dark:text-slate-400">Média (Turma B)</div>
-            <div id="cmpKpiB" class="text-3xl font-semibold">–</div>
+          <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Média (Turma 2)</div>
+            <div id="cmpKpiB" class="text-xl sm:text-3xl font-semibold">–</div>
           </div>
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-            <div class="text-sm text-slate-500 dark:text-slate-400">% Alto (A)</div>
-            <div id="cmpKpiAltoA" class="text-3xl font-semibold">–</div>
+          <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">% Alto (1)</div>
+            <div id="cmpKpiAltoA" class="text-xl sm:text-3xl font-semibold">–</div>
           </div>
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
-            <div class="text-sm text-slate-500 dark:text-slate-400">% Alto (B)</div>
-            <div id="cmpKpiAltoB" class="text-3xl font-semibold">–</div>
+          <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">% Alto (2)</div>
+            <div id="cmpKpiAltoB" class="text-xl sm:text-3xl font-semibold">–</div>
           </div>
         </div>
 
         <!-- Gauges A e B -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="font-semibold">Velocímetro – Turma A</h4>
+              <h4 class="font-semibold">Velocímetro – Turma 1</h4>
               <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gaugeA">
                 <i class="ti ti-download"></i> PNG
               </button>
             </div>
             <div id="gaugeA" class="h-[220px]"></div>
           </div>
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="font-semibold">Velocímetro – Turma B</h4>
+              <h4 class="font-semibold">Velocímetro – Turma 2</h4>
               <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="gaugeB">
                 <i class="ti ti-download"></i> PNG
               </button>
@@ -207,19 +378,19 @@
         </div>
 
         <!-- Gráficos de comparação -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="font-semibold">Comparação por Questão (A x B)</h4>
+              <h4 class="font-semibold">Comparação por Questão (1 x 2)</h4>
               <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartCompareQ">
                 <i class="ti ti-download"></i> PNG
               </button>
             </div>
             <canvas id="chartCompareQ" height="260"></canvas>
           </div>
-          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm">
+          <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="font-semibold">Distribuição por Domínio (A x B)</h4>
+              <h4 class="font-semibold">Distribuição por Domínio (1 x 2)</h4>
               <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartCompareDom">
                 <i class="ti ti-download"></i> PNG
               </button>
@@ -233,9 +404,9 @@
     <!-- Tabela -->
     <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-10">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold">Dados (amostra)</h3>
+        <h3 class="font-semibold">Dados (amostra) - <span id="tabelaMateria">Matemática</span></h3>
         <button id="btnCSV" class="px-3 py-2 rounded-xl bg-primary text-white hover:opacity-90 text-sm">
-          <i class="ti ti-download"></i> Exportar CSV (filtro)
+          <i class="ti ti-download"></i> Exportar CSV
         </button>
       </div>
       <div class="overflow-auto">
@@ -256,12 +427,30 @@
     </section>
   </div>
 
+  <!-- Notificação -->
+  <div id="notification" class="fixed top-4 right-4 p-4 rounded-xl text-white z-50 transform translate-x-full transition-transform duration-300 hidden">
+    <div class="flex items-center gap-2">
+      <i id="notificationIcon" class="ti"></i>
+      <span id="notificationMessage"></span>
+    </div>
+  </div>
+
   <!-- ===================== JS ===================== -->
   <script>
     /********** CONFIG **********/
-    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxA2Lpb17nwkfCeGIRzw3Nq9OZlwKmzMc7Br7BPEExYoQw1lzdTP29cEWzxsNvW_qT8/exec';
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwz2ac96gNaDJSHA8AbEFf47Uh2ko4zJHST3zXxc-gG85Ds2rYNuLifZ-VeHcOl3OgP/exec';
 
-    /********** CORES **********/
+    /********** CORES POR MATÉRIA **********/
+    const MATERIA_COLORS = {
+      matematica: '#3b82f6',
+      portugues: '#8b5cf6'
+    };
+    
+    const MATERIA_ICONS = {
+      matematica: 'ti-math',
+      portugues: 'ti-language'
+    };
+
     const DOMAIN_COLORS = { Baixo: '#ef4444', 'Médio': '#f59e0b', Alto: '#16a34a', Indefinido: '#6b7280' };
     const TURMA_PALETTE = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6','#a855f7','#10b981','#eab308','#64748b'];
     let TURMA_COLORS = new Map();
@@ -275,7 +464,9 @@
     const colorByValue  = (v)=> DOMAIN_COLORS[domainByValue(v)] || '#94a3b8';
 
     /********** ESTADO **********/
-    let DATASET = []; let UPDATED_AT = null;
+    let DATASET = []; 
+    let UPDATED_AT = null;
+    let MATERIA_ATUAL = 'matematica';
     let chartDominio, chartTurma, gauge, cmpChartQ, cmpChartDom, gaugeA, gaugeB;
 
     /********** ELEMENTOS **********/
@@ -289,9 +480,20 @@
     const kpiAtualizado = document.getElementById('kpiAtualizado');
     const alertBox = document.getElementById('alert');
     const alertMsg = document.getElementById('alertMsg');
+    const materiaInfo = document.getElementById('materiaInfo');
+    const materiaBadge = document.getElementById('materiaBadge');
+    const tabelaMateria = document.getElementById('tabelaMateria');
+    const mobileMateriaInfo = document.getElementById('mobileMateriaInfo');
+    const mobileMateriaBadge = document.getElementById('mobileMateriaBadge');
 
     const btnTheme = document.getElementById('btnTheme');
     const btnExportAll = document.getElementById('btnExportAll');
+    const btnMobileMenu = document.getElementById('btnMobileMenu');
+    const btnCloseMenu = document.getElementById('btnCloseMenu');
+    const btnRefreshMobile = document.getElementById('btnRefreshMobile');
+    const btnThemeMobile = document.getElementById('btnThemeMobile');
+    const btnExportAllMobile = document.getElementById('btnExportAllMobile');
+    const mobileMenu = document.getElementById('mobileMenu');
 
     const cmpToggle = document.getElementById('cmpToggle');
     const cmpArea = document.getElementById('cmpArea');
@@ -339,61 +541,275 @@
     Chart.register(OutLabelPlugin);
 
     /********** EVENTOS **********/
-    btnTheme.addEventListener('click', () => {
-      document.documentElement.classList.toggle('dark');
-      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-      renderCharts(); renderCompare();
-    });
+    btnTheme.addEventListener('click', toggleTheme);
+    btnThemeMobile.addEventListener('click', toggleTheme);
+    
     document.getElementById('btnRefresh').addEventListener('click', loadData);
-    document.getElementById('btnLimpar').addEventListener('click', () => { [fTurma, fQuestao, fDescritor].forEach(sel => sel.value = ''); updateAll(); });
+    btnRefreshMobile.addEventListener('click', () => {
+      loadData();
+      mobileMenu.classList.add('translate-x-full');
+    });
+    
+    document.getElementById('btnLimpar').addEventListener('click', () => { 
+      [fTurma, fQuestao, fDescritor].forEach(sel => sel.value = ''); 
+      updateAll(); 
+    });
+    
     document.getElementById('btnCSV').addEventListener('click', exportCSV);
-    [fTurma, fQuestao, fDescritor].forEach(sel => sel.addEventListener('change', updateAll));
+
+    // Menu mobile
+    btnMobileMenu.addEventListener('click', () => {
+      mobileMenu.classList.remove('translate-x-full');
+    });
+    
+    btnCloseMenu.addEventListener('click', () => {
+      mobileMenu.classList.add('translate-x-full');
+    });
+
+    // Eventos dos botões de matéria
+    document.querySelectorAll('.materia-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const materia = e.currentTarget.getAttribute('data-materia');
+        switchMateria(materia);
+        
+        // Fechar menu mobile se estiver aberto
+        mobileMenu.classList.add('translate-x-full');
+      });
+    });
 
     document.addEventListener('click', (ev) => {
-      const btn = ev.target.closest('.export-btn'); if (!btn) return;
+      const btn = ev.target.closest('.export-btn'); 
+      if (!btn) return;
       exportPNG(btn.getAttribute('data-target'));
     });
+    
     btnExportAll.addEventListener('click', () => {
       ['chartDominio','chartTurma','gauge'].forEach(exportPNG);
       if (!cmpArea.classList.contains('hidden')) ['gaugeA','gaugeB','chartCompareQ','chartCompareDom'].forEach(exportPNG);
     });
+    
+    btnExportAllMobile.addEventListener('click', () => {
+      ['chartDominio','chartTurma','gauge'].forEach(exportPNG);
+      if (!cmpArea.classList.contains('hidden')) ['gaugeA','gaugeB','chartCompareQ','chartCompareDom'].forEach(exportPNG);
+      mobileMenu.classList.add('translate-x-full');
+    });
+
+    [fTurma, fQuestao, fDescritor].forEach(sel => sel.addEventListener('change', updateAll));
+
+    /********** FUNÇÕES DE MATÉRIA **********/
+    function switchMateria(materia) {
+      if (materia === MATERIA_ATUAL) return;
+      
+      MATERIA_ATUAL = materia;
+      
+      // Atualizar UI
+      updateMateriaUI();
+      
+      // Recarregar dados
+      loadData();
+    }
+
+    function updateMateriaUI() {
+      const materiaNome = MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português';
+      const materiaCor = MATERIA_COLORS[MATERIA_ATUAL];
+      const materiaIcon = MATERIA_ICONS[MATERIA_ATUAL];
+      
+      // Atualizar badge principal
+      materiaBadge.className = `px-4 py-2 rounded-full text-sm font-medium badge-${MATERIA_ATUAL}`;
+      materiaBadge.innerHTML = `<i class="ti ${materiaIcon} mr-1"></i> ${materiaNome}`;
+      
+      // Atualizar informações de matéria
+      materiaInfo.textContent = `${materiaNome} - Formato: 3 linhas de cabeçalho`;
+      tabelaMateria.textContent = materiaNome;
+      
+      // Atualizar mobile
+      mobileMateriaInfo.textContent = `${materiaNome} - Dashboard`;
+      mobileMateriaBadge.textContent = materiaNome;
+      
+      // Atualizar botões ativos
+      document.querySelectorAll('.materia-btn').forEach(btn => {
+        const btnMateria = btn.getAttribute('data-materia');
+        if (btnMateria === MATERIA_ATUAL) {
+          btn.classList.add('materia-active');
+          btn.classList.add(`${MATERIA_ATUAL}-active`);
+        } else {
+          btn.classList.remove('materia-active');
+          btn.classList.remove('matematica-active');
+          btn.classList.remove('portugues-active');
+        }
+      });
+    }
+    
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      renderCharts(); 
+      renderCompare();
+    }
 
     /********** HELPERS **********/
-    function showError(msg){ alertMsg.textContent=msg||'Falha desconhecida.'; alertBox.classList.remove('hidden'); }
-    function hideError(){ alertBox.classList.add('hidden'); alertMsg.textContent=''; }
+    function showError(msg){ 
+      alertMsg.textContent=msg||'Falha desconhecida.'; 
+      alertBox.classList.remove('hidden'); 
+    }
+    
+    function hideError(){ 
+      alertBox.classList.add('hidden'); 
+      alertMsg.textContent=''; 
+    }
+    
     const unique = arr => [...new Set(arr.filter(v => v !== '' && v != null))];
-    function applyFilters(){ return DATASET.filter(r => (!fTurma.value || r.Turma==fTurma.value) && (!fQuestao.value || r.Questao==fQuestao.value) && (!fDescritor.value || r.Descritor==fDescritor.value)); }
-    function avgPercent(rows){ const nums=rows.map(x=>Number(x.Percentual)).filter(Number.isFinite); return nums.length? nums.reduce((a,b)=>a+b,0)/nums.length : NaN; }
-    function dominioCounts(rows){ const c={Baixo:0,'Médio':0,Alto:0,Indefinido:0}; rows.forEach(r=>c[r.Dominio]=(c[r.Dominio]||0)+1); return c; }
-    function groupMean(rows,key){ const m=new Map(); rows.forEach(r=>{const k=String(r[key]??''); const prev=m.get(k)||{sum:0,n:0}; const p=Number(r.Percentual); if(Number.isFinite(p)){prev.sum+=p; prev.n++; m.set(k,prev);} }); return [...m.entries()].map(([label,{sum,n}])=>({label,value:n?sum/n:NaN})).sort((a,b)=>a.label.localeCompare(b.label,'pt-BR',{numeric:true})); }
-    function toCSV(rows){ const h=['Turma','Questao','Descritor','Acertos','Percentual','Dominio']; const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`; const L=[h.join(';')]; rows.forEach(r=>{const pct=Number.isFinite(Number(r.Percentual))?Number(r.Percentual).toFixed(2).replace('.',',')+'%':''; L.push([r.Turma,r.Questao,r.Descritor,r.Acertos??'',pct,r.Dominio].map(esc).join(';'));}); return L.join('\n'); }
-    function exportCSV(){ const blob=new Blob([toCSV(applyFilters())],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='dados_filtrados.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-    function triggerDownload(uri, filename){ const a=document.createElement('a'); a.href=uri; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
-    function chartToPNG(chart,name){ try{ triggerDownload(chart.canvas.toDataURL('image/png',1.0), `${name}.png`);}catch(e){console.error(e);} }
-    async function apexToPNG(apex, name){ try{ const r=await apex.dataURI(); triggerDownload(r.imgURI, `${name}.png`);} catch(e){ console.error(e); } }
+    
+    function applyFilters(){ 
+      return DATASET.filter(r => 
+        (!fTurma.value || r.Turma==fTurma.value) && 
+        (!fQuestao.value || r.Questao==fQuestao.value) && 
+        (!fDescritor.value || r.Descritor==fDescritor.value)
+      );
+    }
+    
+    function avgPercent(rows){ 
+      const nums=rows.map(x=>Number(x.Percentual)).filter(Number.isFinite); 
+      return nums.length? nums.reduce((a,b)=>a+b,0)/nums.length : NaN; 
+    }
+    
+    function dominioCounts(rows){ 
+      const c={Baixo:0,'Médio':0,Alto:0,Indefinido:0}; 
+      rows.forEach(r=>c[r.Dominio]=(c[r.Dominio]||0)+1); 
+      return c; 
+    }
+    
+    function groupMean(rows,key){ 
+      const m=new Map(); 
+      rows.forEach(r=>{
+        const k=String(r[key]??''); 
+        const prev=m.get(k)||{sum:0,n:0}; 
+        const p=Number(r.Percentual); 
+        if(Number.isFinite(p)){
+          prev.sum+=p; 
+          prev.n++; 
+          m.set(k,prev);
+        }
+      }); 
+      return [...m.entries()].map(([label,{sum,n}])=>({label,value:n?sum/n:NaN})).sort((a,b)=>a.label.localeCompare(b.label,'pt-BR',{numeric:true})); 
+    }
+    
+    function toCSV(rows){ 
+      const h=['Materia','Turma','Questao','Descritor','Acertos','Percentual','Dominio']; 
+      const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`; 
+      const L=[h.join(';')]; 
+      rows.forEach(r=>{
+        const pct=Number.isFinite(Number(r.Percentual))?Number(r.Percentual).toFixed(2).replace('.',',')+'%':'';
+        L.push([r.Materia, r.Turma,r.Questao,r.Descritor,r.Acertos??'',pct,r.Dominio].map(esc).join(';'));
+      }); 
+      return L.join('\n'); 
+    }
+    
+    function exportCSV(){ 
+      const blob=new Blob([toCSV(applyFilters())],{type:'text/csv;charset=utf-8;'}); 
+      const url=URL.createObjectURL(blob); 
+      const a=document.createElement('a'); 
+      a.href=url; 
+      a.download=`dados_${MATERIA_ATUAL}_filtrados.csv`; 
+      document.body.appendChild(a); 
+      a.click(); 
+      a.remove(); 
+      URL.revokeObjectURL(url); 
+      showNotification('CSV exportado com sucesso!', 'success');
+    }
+    
+    function triggerDownload(uri, filename){ 
+      const a=document.createElement('a'); 
+      a.href=uri; 
+      a.download=filename; 
+      document.body.appendChild(a); 
+      a.click(); 
+      a.remove(); 
+    }
+    
+    function chartToPNG(chart,name){ 
+      try{ 
+        triggerDownload(chart.canvas.toDataURL('image/png',1.0), `${name}_${MATERIA_ATUAL}.png`);
+        showNotification(`Gráfico ${name} exportado!`, 'success');
+      }catch(e){
+        console.error(e);
+        showNotification('Erro ao exportar gráfico', 'error');
+      }
+    }
+    
+    async function apexToPNG(apex, name){ 
+      try{ 
+        const r=await apex.dataURI(); 
+        triggerDownload(r.imgURI, `${name}_${MATERIA_ATUAL}.png`); 
+        showNotification(`Gráfico ${name} exportado!`, 'success');
+      } catch(e){ 
+        console.error(e); 
+        showNotification('Erro ao exportar gráfico', 'error');
+      } 
+    }
+    
     function exportPNG(target){
       switch(target){
         case 'chartDominio': if(chartDominio) chartToPNG(chartDominio,'distribuicao-dominio'); break;
         case 'chartTurma': if(chartTurma) chartToPNG(chartTurma,'media-por-turma'); break;
         case 'gauge': if(gauge) apexToPNG(gauge,'gauge-media-geral'); break;
-        case 'gaugeA': if(gaugeA) apexToPNG(gaugeA,'gauge-turma-a'); break;
-        case 'gaugeB': if(gaugeB) apexToPNG(gaugeB,'gauge-turma-b'); break;
+        case 'gaugeA': if(gaugeA) apexToPNG(gaugeA,'gauge-turma-1'); break;
+        case 'gaugeB': if(gaugeB) apexToPNG(gaugeB,'gauge-turma-2'); break;
         case 'chartCompareQ': if(cmpChartQ) chartToPNG(cmpChartQ,'comparacao-questao'); break;
         case 'chartCompareDom': if(cmpChartDom) chartToPNG(cmpChartDom,'comparacao-dominio'); break;
       }
+    }
+    
+    // Sistema de notificações
+    function showNotification(message, type = 'info') {
+      const notification = document.getElementById('notification');
+      const notificationIcon = document.getElementById('notificationIcon');
+      const notificationMessage = document.getElementById('notificationMessage');
+      
+      let bgColor, icon;
+      switch(type) {
+        case 'success':
+          bgColor = 'bg-green-500';
+          icon = 'ti-check';
+          break;
+        case 'error':
+          bgColor = 'bg-red-500';
+          icon = 'ti-x';
+          break;
+        default:
+          bgColor = 'bg-blue-500';
+          icon = 'ti-info-circle';
+      }
+      
+      notification.className = `fixed top-4 right-4 p-4 rounded-xl text-white z-50 transform translate-x-full transition-transform duration-300 ${bgColor}`;
+      notificationIcon.className = `ti ${icon}`;
+      notificationMessage.textContent = message;
+      
+      notification.classList.remove('hidden');
+      setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+      
+      setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.classList.add('hidden'), 300);
+      }, 3000);
     }
 
     /********** LOAD **********/
     async function loadData(){
       hideError();
+      showNotification(`Carregando dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'}...`, 'info');
+      
       try{
-        const ping = await fetch(WEB_APP_URL+'?action=ping'); const t1 = await ping.text();
+        const ping = await fetch(WEB_APP_URL+`?action=ping&materia=${MATERIA_ATUAL}`); 
+        const t1 = await ping.text();
         if(!ping.ok) throw new Error('Ping HTTP '+ping.status);
         try{ JSON.parse(t1); }catch{ throw new Error('Ping não retornou JSON. Reimplante o Web App (Qualquer pessoa).'); }
 
-        const r = await fetch(WEB_APP_URL+'?action=dataset&nocache=1'); const t = await r.text();
+        const r = await fetch(WEB_APP_URL+`?action=dataset&materia=${MATERIA_ATUAL}&nocache=1`); 
+        const t = await r.text();
         if(!r.ok) throw new Error('HTTP '+r.status);
-        let json; try{ json=JSON.parse(t);}catch{ throw new Error('Dataset não retornou JSON válido.'); }
+        let json; 
+        try{ json=JSON.parse(t);}catch{ throw new Error('Dataset não retornou JSON válido.'); }
         if(!json.ok) throw new Error(json.error||'Resposta inválida');
 
         UPDATED_AT = json.updatedAt? new Date(json.updatedAt): null;
@@ -406,20 +822,40 @@
         fillSelect(fQuestao, [...new Set(DATASET.map(r=>r.Questao).filter(Boolean))], 'Todas');
         fillSelect(fDescritor, [...new Set(DATASET.map(r=>r.Descritor).filter(Boolean))], 'Todos');
 
-        fillSelect(cmpA, turmas, null); fillSelect(cmpB, turmas, null);
-        if(turmas.length>=2){ cmpA.value = turmas[0]; cmpB.value = turmas[1]; }
+        fillSelect(cmpA, turmas, null); 
+        fillSelect(cmpB, turmas, null);
+        if(turmas.length>=2){ 
+          cmpA.value = turmas[0]; 
+          cmpB.value = turmas[1]; 
+        }
 
-        // habilita/desabilita o modo comparação conforme nº de turmas
         cmpToggle.disabled = turmas.length < 2;
         cmpArea.classList.toggle('hidden', !(cmpToggle.checked && turmas.length>=2));
 
         updateAll();
-      }catch(err){ console.error(err); showError('Não foi possível obter os dados. '+err.message); }
+        showNotification(`Dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'} carregados!`, 'success');
+      }catch(err){ 
+        console.error(err); 
+        showError('Não foi possível obter os dados. '+err.message); 
+        showNotification('Erro ao carregar dados', 'error');
+      }
     }
+    
     function fillSelect(select, options, allLabel){
-      const cur=select.value; select.innerHTML='';
-      if(allLabel){ const o=document.createElement('option'); o.value=''; o.textContent=allLabel; select.appendChild(o); }
-      options.sort((a,b)=>String(a).localeCompare(String(b),'pt-BR',{numeric:true})).forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; select.appendChild(o); });
+      const cur=select.value; 
+      select.innerHTML='';
+      if(allLabel){ 
+        const o=document.createElement('option'); 
+        o.value=''; 
+        o.textContent=allLabel; 
+        select.appendChild(o); 
+      }
+      options.sort((a,b)=>String(a).localeCompare(String(b),'pt-BR',{numeric:true})).forEach(v=>{ 
+        const o=document.createElement('option'); 
+        o.value=v; 
+        o.textContent=v; 
+        select.appendChild(o); 
+      });
       if(cur && options.includes(cur)) select.value=cur;
     }
 
@@ -470,7 +906,12 @@
           layout: { padding: { left: 8, right: 8, top: 12, bottom: 4 } },
           scales:{
             x:{ ticks:{ color:textColor }, grid:{ color:gridColor } },
-            y:{ beginAtZero:true, max:100, ticks:{ color:textColor, callback:v=>v+'%' }, grid:{ color:gridColor } }
+            y:{ 
+              beginAtZero:true, 
+              max:100, 
+              ticks:{ color:textColor, callback:v=>v+'%' }, 
+              grid:{ color:gridColor } 
+            }
           },
           plugins:{
             legend:{ display:false },
@@ -509,7 +950,8 @@
 
     function renderTable(){
       const filtered = applyFilters();
-      tbody.innerHTML=''; const maxRows=200;
+      tbody.innerHTML=''; 
+      const maxRows=200;
       filtered.slice(0,maxRows).forEach(r=>{
         const pct = Number.isFinite(Number(r.Percentual)) ? (Number(r.Percentual).toFixed(1)).replace('.', ',')+'%' : '';
         const tr=document.createElement('tr');
@@ -522,12 +964,14 @@
         tbody.appendChild(tr);
       });
     }
+    
     function badgeClass(dom){
-      if(dom==='Alto') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      if(dom==='Médio') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
-      if(dom==='Baixo') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      if(dom==='Alto') return 'badge-alto';
+      if(dom==='Médio') return 'badge-medio';
+      if(dom==='Baixo') return 'badge-baixo';
       return 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300';
     }
+    
     function renderKPIs(){
       const filtered = applyFilters();
       const media = avgPercent(filtered);
@@ -538,7 +982,13 @@
       kpiAlto.textContent = nfPct.format(pAlto);
       kpiAtualizado.textContent = UPDATED_AT ? new Date(UPDATED_AT).toLocaleString('pt-BR') : '—';
     }
-    function updateAll(){ renderKPIs(); renderCharts(); renderTable(); if(cmpToggle.checked && !cmpToggle.disabled) renderCompare(); }
+    
+    function updateAll(){ 
+      renderKPIs(); 
+      renderCharts(); 
+      renderTable(); 
+      if(cmpToggle.checked && !cmpToggle.disabled) renderCompare(); 
+    }
 
     /********** MODO COMPARAÇÃO **********/
     cmpToggle.addEventListener('change', () => {
@@ -546,6 +996,7 @@
       cmpArea.classList.toggle('hidden', !can);
       if (can) renderCompare(); else destroyCompare();
     });
+    
     [cmpA, cmpB].forEach(sel => sel.addEventListener('change', renderCompare));
 
     function renderCompare(){
@@ -553,7 +1004,12 @@
 
       const turmaA = cmpA.value, turmaB = cmpB.value;
       if(!turmaA || !turmaB || turmaA===turmaB){
-        destroyCompare(); cmpKpiA.textContent='–'; cmpKpiB.textContent='–'; cmpKpiAltoA.textContent='–'; cmpKpiAltoB.textContent='–'; return;
+        destroyCompare(); 
+        cmpKpiA.textContent='–'; 
+        cmpKpiB.textContent='–'; 
+        cmpKpiAltoA.textContent='–'; 
+        cmpKpiAltoB.textContent='–'; 
+        return;
       }
 
       const rowsA = DATASET.filter(r=>String(r.Turma)===String(turmaA));
@@ -578,17 +1034,33 @@
       const valA = Number.isFinite(mediaA)?mediaA:0;
       const valB = Number.isFinite(mediaB)?mediaB:0;
 
-      if(!gaugeA){ gaugeA = new ApexCharts(document.querySelector('#gaugeA'), radialOpts(valA, isDark, textColor)); gaugeA.render(); }
-      else { gaugeA.updateOptions(radialOpts(valA, isDark, textColor)); gaugeA.updateSeries([valA]); }
+      if(!gaugeA){ 
+        gaugeA = new ApexCharts(document.querySelector('#gaugeA'), radialOpts(valA, isDark, textColor)); 
+        gaugeA.render(); 
+      }
+      else { 
+        gaugeA.updateOptions(radialOpts(valA, isDark, textColor)); 
+        gaugeA.updateSeries([valA]); 
+      }
 
-      if(!gaugeB){ gaugeB = new ApexCharts(document.querySelector('#gaugeB'), radialOpts(valB, isDark, textColor)); gaugeB.render(); }
-      else { gaugeB.updateOptions(radialOpts(valB, isDark, textColor)); gaugeB.updateSeries([valB]); }
+      if(!gaugeB){ 
+        gaugeB = new ApexCharts(document.querySelector('#gaugeB'), radialOpts(valB, isDark, textColor)); 
+        gaugeB.render(); 
+      }
+      else { 
+        gaugeB.updateOptions(radialOpts(valB, isDark, textColor)); 
+        gaugeB.updateSeries([valB]); 
+      }
 
-      // Barras por Questão
+      // Barras por Questão (SEM rótulos de dados)
       const mapA=new Map(), mapB=new Map();
       rowsA.forEach(r=>mapA.set(String(r.Questao), Number(r.Percentual)));
       rowsB.forEach(r=>mapB.set(String(r.Questao), Number(r.Percentual)));
-      const allQ = unique([...mapA.keys(),...mapB.keys()]).sort((a,b)=>{ const na=parseInt(String(a).replace(/\D/g,''))||0; const nb=parseInt(String(b).replace(/\D/g,''))||0; return na===nb?String(a).localeCompare(String(b),'pt-BR',{numeric:true}):na-nb; });
+      const allQ = unique([...mapA.keys(),...mapB.keys()]).sort((a,b)=>{ 
+        const na=parseInt(String(a).replace(/\D/g,''))||0; 
+        const nb=parseInt(String(b).replace(/\D/g,''))||0; 
+        return na===nb?String(a).localeCompare(String(b),'pt-BR',{numeric:true}):na-nb; 
+      });
       const dataA = allQ.map(q=>Number.isFinite(mapA.get(q))?mapA.get(q):null);
       const dataB = allQ.map(q=>Number.isFinite(mapB.get(q))?mapB.get(q):null);
 
@@ -598,19 +1070,41 @@
         data:{
           labels: allQ,
           datasets:[
-            { label:`Turma A – ${turmaA}`, data:dataA, backgroundColor:hexToRgba(colorA,.85), borderColor:colorA, borderWidth:1 },
-            { label:`Turma B – ${turmaB}`, data:dataB, backgroundColor:hexToRgba(colorB,.85), borderColor:colorB, borderWidth:1 }
+            { label:`Turma 1 – ${turmaA}`, data:dataA, backgroundColor:hexToRgba(colorA,.85), borderColor:colorA, borderWidth:1 },
+            { label:`Turma 2 – ${turmaB}`, data:dataB, backgroundColor:hexToRgba(colorB,.85), borderColor:colorB, borderWidth:1 }
           ]
         },
         options:{
-          scales:{ x:{ ticks:{ color:textColor }, grid:{ color:gridColor } }, y:{ beginAtZero:true, max:100, ticks:{ color:textColor, callback:v=>v+'%' }, grid:{ color:gridColor } } },
-          plugins:{ legend:{ labels:{ color:textColor } } }
+          scales:{ 
+            x:{ ticks:{ color:textColor }, grid:{ color:gridColor } }, 
+            y:{ 
+              beginAtZero:true, 
+              max:110,  // Aumentado para 110%
+              ticks:{ 
+                color:textColor, 
+                callback:v => v <= 100 ? v + '%' : '', // Não mostra valores acima de 100%
+                stepSize: 20
+              }, 
+              grid:{ color:gridColor } 
+            } 
+          },
+          plugins:{ 
+            legend:{ labels:{ color:textColor } }
+            // SEM plugin datalabels para este gráfico
+          }
         }
+        // SEM plugins: [ChartDataLabels] para este gráfico
       });
 
-      // Distribuição por Domínio (A x B) — cores das turmas
+      // Distribuição por Domínio (A x B) - AGORA EM PORCENTAGEM
       const domLabels = ['Baixo','Médio','Alto'];
-      const vA = domLabels.map(l=>cA[l]||0), vB = domLabels.map(l=>cB[l]||0);
+      
+      // Calcular porcentagens em vez de contagens
+      const totalA = rowsA.length;
+      const totalB = rowsB.length;
+      
+      const vA = domLabels.map(l => totalA ? ((cA[l] || 0) / totalA * 100) : 0);
+      const vB = domLabels.map(l => totalB ? ((cB[l] || 0) / totalB * 100) : 0);
 
       if(cmpChartDom) cmpChartDom.destroy();
       cmpChartDom = new Chart(document.getElementById('chartCompareDom'), {
@@ -618,16 +1112,79 @@
         data:{
           labels: domLabels,
           datasets:[
-            { label:`Turma A – ${turmaA}`, data:vA, backgroundColor:hexToRgba(colorA,.85), borderColor:colorA, borderWidth:1 },
-            { label:`Turma B – ${turmaB}`, data:vB, backgroundColor:hexToRgba(colorB,.85), borderColor:colorB, borderWidth:1 }
+            { 
+              label:`Turma 1 – ${turmaA}`, 
+              data: vA, 
+              backgroundColor: hexToRgba(colorA,.85), 
+              borderColor: colorA, 
+              borderWidth: 1 
+            },
+            { 
+              label:`Turma 2 – ${turmaB}`, 
+              data: vB, 
+              backgroundColor: hexToRgba(colorB,.85), 
+              borderColor: colorB, 
+              borderWidth: 1 
+            }
           ]
         },
         options:{
-          scales:{ x:{ ticks:{ color:textColor }, grid:{ color:gridColor } }, y:{ beginAtZero:true, ticks:{ color:textColor, precision:0 }, grid:{ color:gridColor } } },
-          plugins:{ legend:{ labels:{ color:textColor } } }
-        }
+          scales:{ 
+            x:{ 
+              ticks:{ color:textColor }, 
+              grid:{ color:gridColor } 
+            }, 
+            y:{ 
+              beginAtZero:true, 
+              max:110,  // Aumentado para 110%
+              ticks:{ 
+                color:textColor, 
+                callback: v => v <= 100 ? v + '%' : '', // Não mostra valores acima de 100%
+                stepSize: 20
+              }, 
+              grid:{ color:gridColor } 
+            } 
+          },
+          plugins:{ 
+            legend:{ 
+              labels:{ color:textColor } 
+            },
+            // Plugin para rótulos de dados - posicionamento externo
+            datalabels: {
+              color: function(context) {
+                // Cor contrastante com o fundo
+                const isDark = document.documentElement.classList.contains('dark');
+                return isDark ? '#e5e7eb' : '#111827';
+              },
+              anchor: 'end',
+              align: 'top',
+              offset: 8,
+              formatter: function(value) {
+                return value.toFixed(1) + '%';
+              },
+              font: {
+                weight: 'bold',
+                size: 12
+              },
+              // Efeito de fundo para melhor legibilidade
+              backgroundColor: function(context) {
+                const isDark = document.documentElement.classList.contains('dark');
+                return isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+              },
+              borderRadius: 4,
+              padding: {
+                top: 4,
+                bottom: 4,
+                left: 6,
+                right: 6
+              }
+            }
+          }
+        },
+        plugins: [ChartDataLabels] // Registrar o plugin para este gráfico
       });
     }
+    
     function destroyCompare(){
       if(cmpChartQ){cmpChartQ.destroy(); cmpChartQ=null;}
       if(cmpChartDom){cmpChartDom.destroy(); cmpChartDom=null;}
@@ -636,6 +1193,7 @@
     }
 
     // Init
+    updateMateriaUI();
     loadData();
   </script>
 </body>
