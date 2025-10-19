@@ -20,11 +20,39 @@
           animation: {
             'pulse': 'pulse 2s infinite',
             'fade-in': 'fadeIn 0.5s ease-in-out',
+            'fade-in-up': 'fadeInUp 0.6s ease-out',
+            'slide-in-right': 'slideInRight 0.3s ease-out',
+            'bounce-in': 'bounceIn 0.6s ease-out',
+            'gradient-shift': 'gradientShift 3s ease infinite',
+            'slide-in-down': 'slideInDown 0.3s ease-out',
           },
           keyframes: {
             fadeIn: {
               '0%': { opacity: '0', transform: 'translateY(10px)' },
               '100%': { opacity: '1', transform: 'translateY(0)' }
+            },
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            },
+            slideInRight: {
+              '0%': { opacity: '0', transform: 'translateX(20px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' }
+            },
+            bounceIn: {
+              '0%': { opacity: '0', transform: 'scale(0.3)' },
+              '50%': { opacity: '1', transform: 'scale(1.05)' },
+              '70%': { transform: 'scale(0.9)' },
+              '100%': { opacity: '1', transform: 'scale(1)' }
+            },
+            gradientShift: {
+              '0%': { backgroundPosition: '0% 50%' },
+              '50%': { backgroundPosition: '100% 50%' },
+              '100%': { backgroundPosition: '0% 50%' }
+            },
+            slideInDown: {
+              '0%': { transform: 'translate(-50%, -100%)', opacity: '0' },
+              '100%': { transform: 'translate(-50%, 0)', opacity: '1' }
             }
           }
         } 
@@ -111,9 +139,87 @@
       font-weight: 600;
       text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
+
+    /* Novos estilos para as implementações */
+    .loading-overlay {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(4px);
+    }
+    
+    .dark .loading-overlay {
+      background: rgba(15, 23, 42, 0.9);
+    }
+    
+    .gradient-bg {
+      background: linear-gradient(-45deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+      background-size: 400% 400%;
+    }
+    
+    .focus-mode .focus-secondary {
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
+    }
+    
+    .focus-mode .focus-primary {
+      transform: scale(1.02);
+      transition: transform 0.3s ease;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    
+    .search-highlight {
+      background-color: rgba(255, 255, 0, 0.3);
+      border-radius: 2px;
+      padding: 1px 2px;
+    }
+    
+    .template-tag {
+      background: linear-gradient(135deg, #8b5cf6, #a855f7);
+      color: white;
+    }
+    
+    .mini-chart {
+      height: 40px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    
+    .key-shortcut {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 6px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .key-shortcut {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Estilos para o Modo Foco */
+    #focusControls {
+      animation: slideInDown 0.3s ease-out;
+    }
   </style>
 </head>
 <body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 z-50 flex items-center justify-center loading-overlay hidden">
+    <div class="text-center animate-bounce-in">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-bg text-white mb-4 animate-gradient-shift">
+        <i class="ti ti-chart-bar text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-semibold mb-2">Carregando dados...</h3>
+      <p class="text-sm text-slate-600 dark:text-slate-300" id="loadingText">Aguarde um momento</p>
+    </div>
+  </div>
+
   <!-- Menu Mobile -->
   <div id="mobileMenu" class="lg:hidden fixed inset-0 bg-white dark:bg-slate-900 z-50 mobile-menu-transition transform translate-x-full">
     <div class="p-4 h-full flex flex-col">
@@ -157,6 +263,9 @@
         </button>
         <button id="btnThemeMobile" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center gap-3 text-left">
           <i class="ti ti-moon-stars"></i> Alternar Tema
+        </button>
+        <button id="btnFocusModeMobile" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center gap-3 text-left">
+          <i class="ti ti-zoom-in"></i> Modo Foco
         </button>
         <button id="btnExportAllMobile" class="w-full px-4 py-3 rounded-xl bg-primary text-white flex items-center gap-3 text-left">
           <i class="ti ti-download"></i> Exportar Todos (PNG)
@@ -206,6 +315,9 @@
           </button>
         </div>
 
+        <button id="btnFocusMode" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
+          <i class="ti ti-zoom-in"></i> Modo Foco
+        </button>
         <button id="btnRefresh" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm">
           <i class="ti ti-refresh"></i> Recarregar
         </button>
@@ -217,6 +329,37 @@
         </button>
       </div>
     </header>
+
+    <!-- Barra de Busca Global -->
+    <div class="mb-4 animate-fade-in-up">
+      <div class="relative">
+        <i class="ti ti-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+        <input 
+          id="globalSearch" 
+          type="text" 
+          placeholder="Buscar por turma, questão, descritor..." 
+          class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+        >
+        <div class="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+          <kbd class="key-shortcut">Ctrl</kbd>
+          <kbd class="key-shortcut">K</kbd>
+        </div>
+      </div>
+      <div id="searchResults" class="mt-2 text-sm text-slate-600 dark:text-slate-300 hidden">
+        <span id="searchCount">0</span> resultados encontrados
+      </div>
+    </div>
+
+    <!-- Templates de Filtro -->
+    <div class="mb-4 animate-fade-in-up">
+      <div class="flex items-center gap-2 mb-2">
+        <label class="block text-sm font-medium">Templates de Filtro</label>
+        <button id="btnSaveTemplate" class="text-xs text-primary hover:underline">Salvar atual</button>
+      </div>
+      <div id="filterTemplates" class="flex flex-wrap gap-2">
+        <!-- Templates serão carregados dinamicamente -->
+      </div>
+    </div>
 
     <!-- Alerta -->
     <div id="alert" class="hidden mb-4 p-3 rounded-xl border border-red-300/60 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200">
@@ -264,6 +407,7 @@
       <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
         <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Média Geral</div>
         <div id="kpiMedia" class="text-xl sm:text-3xl font-semibold">–</div>
+        <div class="mini-chart mt-2" id="miniChartMedia"></div>
       </div>
       <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
         <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Itens (colunas)</div>
@@ -272,6 +416,7 @@
       <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
         <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Domínio Alto</div>
         <div id="kpiAlto" class="text-xl sm:text-3xl font-semibold">–</div>
+        <div class="mini-chart mt-2" id="miniChartAlto"></div>
       </div>
       <div class="rounded-2xl p-3 sm:p-4 bg-white dark:bg-slate-800 shadow-sm animate-fade-in">
         <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Atualizado em</div>
@@ -291,7 +436,7 @@
         <canvas id="chartDominio" height="240"></canvas>
       </div>
 
-      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container relative">
+      <div class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm chart-container relative focus-primary">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold">Média por Turma</h3>
           <button class="export-btn px-2 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700" data-target="chartTurma">
@@ -313,7 +458,7 @@
     </section>
 
     <!-- Modo Comparação -->
-    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-6">
+    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-6 focus-secondary">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="flex items-center gap-2">
           <h3 class="font-semibold">Modo de Comparação</h3>
@@ -402,12 +547,17 @@
     </section>
 
     <!-- Tabela -->
-    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-10">
+    <section class="rounded-2xl p-4 bg-white dark:bg-slate-800 shadow-sm mb-10 focus-secondary">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-semibold">Dados (amostra) - <span id="tabelaMateria">Matemática</span></h3>
-        <button id="btnCSV" class="px-3 py-2 rounded-xl bg-primary text-white hover:opacity-90 text-sm">
-          <i class="ti ti-download"></i> Exportar CSV
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnAnotacoes" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-sm">
+            <i class="ti ti-notes"></i> Anotações
+          </button>
+          <button id="btnCSV" class="px-3 py-2 rounded-xl bg-primary text-white hover:opacity-90 text-sm">
+            <i class="ti ti-download"></i> Exportar CSV
+          </button>
+        </div>
       </div>
       <div class="overflow-auto">
         <table class="min-w-full text-sm">
@@ -425,6 +575,29 @@
         </table>
       </div>
     </section>
+  </div>
+
+  <!-- Modal de Anotações -->
+  <div id="modalAnotacoes" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/50" id="anotacoesOverlay"></div>
+    <div class="relative bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl mx-4 p-6 animate-bounce-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Anotações</h3>
+        <button id="btnCloseAnotacoes" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <textarea 
+        id="anotacoesText" 
+        class="w-full h-64 p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 resize-none focus:ring-2 focus:ring-primary/20"
+        placeholder="Adicione suas observações sobre os dados..."
+      ></textarea>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="btnSalvarAnotacao" class="px-4 py-2 rounded-xl bg-primary text-white hover:opacity-90">
+          Salvar
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Notificação -->
@@ -468,6 +641,23 @@
     let UPDATED_AT = null;
     let MATERIA_ATUAL = 'matematica';
     let chartDominio, chartTurma, gauge, cmpChartQ, cmpChartDom, gaugeA, gaugeB;
+    
+    // Cache inteligente
+    let DATA_CACHE = {
+      matematica: { data: null, timestamp: null },
+      portugues: { data: null, timestamp: null }
+    };
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+    
+    // Histórico de médias para mini-gráficos
+    let MEDIA_HISTORY = {
+      matematica: [],
+      portugues: []
+    };
+    let ALTO_HISTORY = {
+      matematica: [],
+      portugues: []
+    };
 
     /********** ELEMENTOS **********/
     const fTurma = document.getElementById('fTurma');
@@ -485,15 +675,31 @@
     const tabelaMateria = document.getElementById('tabelaMateria');
     const mobileMateriaInfo = document.getElementById('mobileMateriaInfo');
     const mobileMateriaBadge = document.getElementById('mobileMateriaBadge');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    const globalSearch = document.getElementById('globalSearch');
+    const searchResults = document.getElementById('searchResults');
+    const searchCount = document.getElementById('searchCount');
+    const filterTemplates = document.getElementById('filterTemplates');
+    const btnSaveTemplate = document.getElementById('btnSaveTemplate');
 
     const btnTheme = document.getElementById('btnTheme');
     const btnExportAll = document.getElementById('btnExportAll');
+    const btnFocusMode = document.getElementById('btnFocusMode');
     const btnMobileMenu = document.getElementById('btnMobileMenu');
     const btnCloseMenu = document.getElementById('btnCloseMenu');
     const btnRefreshMobile = document.getElementById('btnRefreshMobile');
     const btnThemeMobile = document.getElementById('btnThemeMobile');
+    const btnFocusModeMobile = document.getElementById('btnFocusModeMobile');
     const btnExportAllMobile = document.getElementById('btnExportAllMobile');
     const mobileMenu = document.getElementById('mobileMenu');
+    
+    const modalAnotacoes = document.getElementById('modalAnotacoes');
+    const btnAnotacoes = document.getElementById('btnAnotacoes');
+    const btnCloseAnotacoes = document.getElementById('btnCloseAnotacoes');
+    const anotacoesOverlay = document.getElementById('anotacoesOverlay');
+    const anotacoesText = document.getElementById('anotacoesText');
+    const btnSalvarAnotacao = document.getElementById('btnSalvarAnotacao');
 
     const cmpToggle = document.getElementById('cmpToggle');
     const cmpArea = document.getElementById('cmpArea');
@@ -540,13 +746,461 @@
     };
     Chart.register(OutLabelPlugin);
 
+    /********** IMPLEMENTAÇÕES PRIORIDADE 1 **********/
+
+    // Sistema de Loading
+    function showLoading(message = 'Carregando dados...') {
+      loadingText.textContent = message;
+      loadingOverlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Debounce para filtros
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Cache inteligente
+    function getCachedData(materia) {
+      const cache = DATA_CACHE[materia];
+      if (cache && cache.timestamp && (Date.now() - cache.timestamp < CACHE_DURATION)) {
+        return cache.data;
+      }
+      return null;
+    }
+
+    function setCachedData(materia, data) {
+      DATA_CACHE[materia] = {
+        data: data,
+        timestamp: Date.now()
+      };
+    }
+
+    // Atalhos de teclado
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        // Ctrl+K ou Cmd+K para busca
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          globalSearch.focus();
+          return;
+        }
+
+        // F5 para recarregar
+        if (e.key === 'F5') {
+          e.preventDefault();
+          loadData(true); // força recarregamento
+          return;
+        }
+
+        // Ctrl+1 e Ctrl+2 para alternar matérias
+        if (e.ctrlKey && (e.key === '1' || e.key === '2')) {
+          e.preventDefault();
+          const materia = e.key === '1' ? 'matematica' : 'português';
+          switchMateria(materia);
+          return;
+        }
+
+        // Esc para sair do modo foco
+        if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) {
+          toggleFocusMode();
+          return;
+        }
+      });
+    }
+
+    /********** IMPLEMENTAÇÕES PRIORIDADE 2 **********/
+
+    // Busca global
+    function setupGlobalSearch() {
+      const debouncedSearch = debounce((query) => {
+        if (!query.trim()) {
+          searchResults.classList.add('hidden');
+          clearSearchHighlights();
+          renderTable();
+          return;
+        }
+
+        const filtered = DATASET.filter(row => 
+          Object.values(row).some(value => 
+            String(value).toLowerCase().includes(query.toLowerCase())
+          )
+        );
+
+        searchCount.textContent = filtered.length;
+        searchResults.classList.remove('hidden');
+        
+        // Destacar termos na tabela
+        renderTableWithHighlights(query, filtered);
+      }, 300);
+
+      globalSearch.addEventListener('input', (e) => {
+        debouncedSearch(e.target.value);
+      });
+    }
+
+    function clearSearchHighlights() {
+      document.querySelectorAll('.search-highlight').forEach(el => {
+        const parent = el.parentNode;
+        parent.replaceChild(document.createTextNode(el.textContent), el);
+        parent.normalize();
+      });
+    }
+
+    function renderTableWithHighlights(query, filtered) {
+      tbody.innerHTML = ''; 
+      const maxRows = 200;
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      
+      filtered.slice(0, maxRows).forEach(r => {
+        const pct = Number.isFinite(Number(r.Percentual)) ? (Number(r.Percentual).toFixed(1)).replace('.', ',') + '%' : '';
+        
+        const highlight = (text) => {
+          return String(text).replace(regex, '<mark class="search-highlight">$1</mark>');
+        };
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-3 py-2">${highlight(r.Turma ?? '')}</td>
+          <td class="px-3 py-2">${highlight(r.Questao ?? '')}</td>
+          <td class="px-3 py-2">${highlight(r.Descritor ?? '')}</td>
+          <td class="px-3 py-2">${r.Acertos ?? ''}</td>
+          <td class="px-3 py-2">${pct}</td>
+          <td class="px-3 py-2"><span class="px-2 py-1 rounded-full text-xs ${badgeClass(r.Dominio)}">${r.Dominio}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Templates de filtro
+    function setupFilterTemplates() {
+      loadTemplates();
+      
+      btnSaveTemplate.addEventListener('click', saveCurrentTemplate);
+    }
+
+    function loadTemplates() {
+      const templates = JSON.parse(localStorage.getItem('filterTemplates') || '[]');
+      filterTemplates.innerHTML = '';
+      
+      templates.forEach((template, index) => {
+        const tag = document.createElement('div');
+        tag.className = 'template-tag px-3 py-1 rounded-full text-xs cursor-pointer hover:opacity-90 transition-opacity';
+        tag.innerHTML = `
+          ${template.name}
+          <button class="ml-1 text-xs opacity-70 hover:opacity-100" data-index="${index}">×</button>
+        `;
+        
+        tag.addEventListener('click', (e) => {
+          if (e.target.tagName === 'BUTTON') {
+            e.stopPropagation();
+            deleteTemplate(index);
+          } else {
+            applyTemplate(template);
+          }
+        });
+        
+        filterTemplates.appendChild(tag);
+      });
+    }
+
+    function saveCurrentTemplate() {
+      const name = prompt('Nome do template:');
+      if (!name) return;
+      
+      const template = {
+        name,
+        filters: {
+          turma: fTurma.value,
+          questao: fQuestao.value,
+          descritor: fDescritor.value
+        },
+        materia: MATERIA_ATUAL,
+        timestamp: new Date().toISOString()
+      };
+      
+      const templates = JSON.parse(localStorage.getItem('filterTemplates') || '[]');
+      templates.push(template);
+      localStorage.setItem('filterTemplates', JSON.stringify(templates));
+      
+      loadTemplates();
+      showNotification('Template salvo com sucesso!', 'success');
+    }
+
+    function applyTemplate(template) {
+      if (template.materia !== MATERIA_ATUAL) {
+        switchMateria(template.materia);
+        // Aguardar mudança de matéria para aplicar filtros
+        setTimeout(() => {
+          fTurma.value = template.filters.turma;
+          fQuestao.value = template.filters.questao;
+          fDescritor.value = template.filters.descritor;
+          updateAll();
+        }, 500);
+      } else {
+        fTurma.value = template.filters.turma;
+        fQuestao.value = template.filters.questao;
+        fDescritor.value = template.filters.descritor;
+        updateAll();
+      }
+    }
+
+    function deleteTemplate(index) {
+      const templates = JSON.parse(localStorage.getItem('filterTemplates') || '[]');
+      templates.splice(index, 1);
+      localStorage.setItem('filterTemplates', JSON.stringify(templates));
+      loadTemplates();
+      showNotification('Template removido', 'info');
+    }
+
+    // Sistema de anotações
+    function setupAnotacoes() {
+      btnAnotacoes.addEventListener('click', () => {
+        loadAnotacoes();
+        modalAnotacoes.classList.remove('hidden');
+      });
+      
+      btnCloseAnotacoes.addEventListener('click', closeAnotacoes);
+      anotacoesOverlay.addEventListener('click', closeAnotacoes);
+      
+      btnSalvarAnotacao.addEventListener('click', salvarAnotacao);
+    }
+
+    function loadAnotacoes() {
+      const anotacoes = localStorage.getItem(`anotacoes_${MATERIA_ATUAL}`) || '';
+      anotacoesText.value = anotacoes;
+    }
+
+    function salvarAnotacao() {
+      localStorage.setItem(`anotacoes_${MATERIA_ATUAL}`, anotacoesText.value);
+      showNotification('Anotações salvas!', 'success');
+      closeAnotacoes();
+    }
+
+    function closeAnotacoes() {
+      modalAnotacoes.classList.add('hidden');
+    }
+
+    /********** MODO FOCO MELHORADO **********/
+
+    function setupFocusMode() {
+      btnFocusMode.addEventListener('click', toggleFocusMode);
+      btnFocusModeMobile.addEventListener('click', () => {
+        toggleFocusMode();
+        mobileMenu.classList.add('translate-x-full');
+      });
+    }
+
+    function toggleFocusMode() {
+      const isFocusMode = !document.body.classList.contains('focus-mode');
+      
+      if (isFocusMode) {
+        // Entrar no Modo Foco
+        document.body.classList.add('focus-mode');
+        
+        // Salvar estado atual
+        sessionStorage.setItem('preFocusState', JSON.stringify({
+          filters: {
+            turma: fTurma.value,
+            questao: fQuestao.value,
+            descritor: fDescritor.value
+          },
+          search: globalSearch.value,
+          comparison: cmpToggle.checked
+        }));
+        
+        // Mostrar controles de foco
+        showFocusControls();
+        
+        btnFocusMode.innerHTML = '<i class="ti ti-zoom-out"></i> Sair do Foco';
+        btnFocusModeMobile.innerHTML = '<i class="ti ti-zoom-out"></i> Sair do Foco';
+        
+      } else {
+        // Sair do Modo Foco
+        document.body.classList.remove('focus-mode');
+        
+        // Restaurar estado anterior
+        const savedState = JSON.parse(sessionStorage.getItem('preFocusState') || '{}');
+        const filters = savedState.filters || {};
+        
+        fTurma.value = filters.turma || '';
+        fQuestao.value = filters.questao || '';
+        fDescritor.value = filters.descritor || '';
+        globalSearch.value = savedState.search || '';
+        if (savedState.comparison !== undefined) {
+          cmpToggle.checked = savedState.comparison;
+          cmpArea.classList.toggle('hidden', !savedState.comparison);
+        }
+        
+        // Oculta controles de foco
+        hideFocusControls();
+        
+        btnFocusMode.innerHTML = '<i class="ti ti-zoom-in"></i> Modo Foco';
+        btnFocusModeMobile.innerHTML = '<i class="ti ti-zoom-in"></i> Modo Foco';
+        
+        updateAll();
+      }
+    }
+
+    function showFocusControls() {
+      // Adiciona barra de controles de foco
+      const focusBar = document.createElement('div');
+      focusBar.id = 'focusControls';
+      focusBar.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 z-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 border border-slate-200 dark:border-slate-700';
+      focusBar.innerHTML = `
+        <div class="flex items-center gap-4">
+          <span class="text-sm font-semibold">Modo Foco Ativo</span>
+          <button class="focus-option px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm" data-action="overview">
+            <i class="ti ti-chart-pie"></i> Visão Geral
+          </button>
+          <button class="focus-option px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm" data-action="performance">
+            <i class="ti ti-trending-up"></i> Desempenho
+          </button>
+          <button class="focus-option px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm" data-action="comparison">
+            <i class="ti ti-versus"></i> Comparação
+          </button>
+          <button id="btnExitFocus" class="px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-sm">
+            <i class="ti ti-x"></i> Sair
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(focusBar);
+      
+      // Event listeners para opções de foco
+      document.querySelectorAll('.focus-option').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const action = e.currentTarget.getAttribute('data-action');
+          applyFocusView(action);
+        });
+      });
+      
+      document.getElementById('btnExitFocus').addEventListener('click', toggleFocusMode);
+    }
+
+    function applyFocusView(viewType) {
+      // Aplica visualização específica baseada no tipo de foco
+      switch(viewType) {
+        case 'overview':
+          fTurma.value = '';
+          fQuestao.value = '';
+          fDescritor.value = '';
+          globalSearch.value = '';
+          cmpToggle.checked = false;
+          cmpArea.classList.add('hidden');
+          break;
+          
+        case 'performance':
+          // Foca em métricas de desempenho (limpa filtros, mas mantém busca?)
+          fTurma.value = '';
+          fQuestao.value = '';
+          fDescritor.value = '';
+          globalSearch.value = '';
+          cmpToggle.checked = false;
+          cmpArea.classList.add('hidden');
+          break;
+          
+        case 'comparison':
+          // Ativa modo comparação se houver turmas
+          const turmas = [...new Set(DATASET.map(r => r.Turma).filter(Boolean))];
+          if (turmas.length >= 2) {
+            cmpToggle.checked = true;
+            cmpArea.classList.remove('hidden');
+            // Preenche as turmas para comparação se não estiverem preenchidas
+            if (!cmpA.value && turmas[0]) cmpA.value = turmas[0];
+            if (!cmpB.value && turmas[1]) cmpB.value = turmas[1];
+          } else {
+            showNotification('É necessário ter pelo menos 2 turmas para comparação', 'error');
+            return;
+          }
+          break;
+      }
+      
+      updateAll();
+      showNotification(`Modo foco: ${viewType}`, 'info');
+    }
+
+    function hideFocusControls() {
+      const focusControls = document.getElementById('focusControls');
+      if (focusControls) {
+        focusControls.remove();
+      }
+    }
+
+    // Mini-gráficos para KPIs
+    function updateMiniCharts() {
+      const filtered = applyFilters();
+      const media = avgPercent(filtered);
+      const c = dominioCounts(filtered);
+      const pAlto = filtered.length ? (c.Alto||0)/filtered.length : 0;
+
+      // Atualizar histórico
+      MEDIA_HISTORY[MATERIA_ATUAL].push(Number.isFinite(media) ? media : 0);
+      ALTO_HISTORY[MATERIA_ATUAL].push(pAlto * 100);
+      
+      // Manter apenas últimos 10 valores
+      if (MEDIA_HISTORY[MATERIA_ATUAL].length > 10) {
+        MEDIA_HISTORY[MATERIA_ATUAL].shift();
+        ALTO_HISTORY[MATERIA_ATUAL].shift();
+      }
+
+      renderMiniChart('miniChartMedia', MEDIA_HISTORY[MATERIA_ATUAL], colorByValue(media));
+      renderMiniChart('miniChartAlto', ALTO_HISTORY[MATERIA_ATUAL], '#16a34a');
+    }
+
+    function renderMiniChart(containerId, data, color) {
+      const container = document.getElementById(containerId);
+      if (!container || data.length < 2) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const max = Math.max(...data);
+      const min = Math.min(...data);
+      const range = max - min || 1;
+      
+      const points = data.map((value, index) => {
+        const x = (index / (data.length - 1)) * 100;
+        const y = 100 - ((value - min) / range) * 100;
+        return `${x},${y}`;
+      }).join(' ');
+
+      const svg = `
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+          <polyline 
+            points="${points}" 
+            fill="none" 
+            stroke="${color}" 
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      `;
+      
+      container.innerHTML = svg;
+    }
+
     /********** EVENTOS **********/
     btnTheme.addEventListener('click', toggleTheme);
     btnThemeMobile.addEventListener('click', toggleTheme);
     
-    document.getElementById('btnRefresh').addEventListener('click', loadData);
+    document.getElementById('btnRefresh').addEventListener('click', () => loadData(true));
     btnRefreshMobile.addEventListener('click', () => {
-      loadData();
+      loadData(true);
       mobileMenu.classList.add('translate-x-full');
     });
     
@@ -594,7 +1248,9 @@
       mobileMenu.classList.add('translate-x-full');
     });
 
-    [fTurma, fQuestao, fDescritor].forEach(sel => sel.addEventListener('change', updateAll));
+    // Debounce nos filtros
+    const debouncedUpdateAll = debounce(updateAll, 300);
+    [fTurma, fQuestao, fDescritor].forEach(sel => sel.addEventListener('change', debouncedUpdateAll));
 
     /********** FUNÇÕES DE MATÉRIA **********/
     function switchMateria(materia) {
@@ -795,9 +1451,22 @@
     }
 
     /********** LOAD **********/
-    async function loadData(){
+    async function loadData(force = false){
       hideError();
-      showNotification(`Carregando dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'}...`, 'info');
+      
+      // Verificar cache primeiro
+      if (!force) {
+        const cachedData = getCachedData(MATERIA_ATUAL);
+        if (cachedData) {
+          showNotification(`Dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'} carregados do cache!`, 'info');
+          UPDATED_AT = cachedData.updatedAt? new Date(cachedData.updatedAt): null;
+          DATASET = Array.isArray(cachedData.data)? cachedData.data : [];
+          processData();
+          return;
+        }
+      }
+
+      showLoading(`Carregando dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'}...`);
       
       try{
         const ping = await fetch(WEB_APP_URL+`?action=ping&materia=${MATERIA_ATUAL}`); 
@@ -815,30 +1484,39 @@
         UPDATED_AT = json.updatedAt? new Date(json.updatedAt): null;
         DATASET = Array.isArray(json.data)? json.data : [];
 
-        const turmas = [...new Set(DATASET.map(r=>r.Turma).filter(Boolean))].filter(t=>String(t).trim().toLowerCase()!=='total');
-        TURMA_COLORS = new Map(turmas.map((t,i)=>[t, TURMA_PALETTE[i%TURMA_PALETTE.length]]));
+        // Salvar no cache
+        setCachedData(MATERIA_ATUAL, { data: DATASET, updatedAt: UPDATED_AT });
 
-        fillSelect(fTurma, turmas, 'Todas');
-        fillSelect(fQuestao, [...new Set(DATASET.map(r=>r.Questao).filter(Boolean))], 'Todas');
-        fillSelect(fDescritor, [...new Set(DATASET.map(r=>r.Descritor).filter(Boolean))], 'Todos');
-
-        fillSelect(cmpA, turmas, null); 
-        fillSelect(cmpB, turmas, null);
-        if(turmas.length>=2){ 
-          cmpA.value = turmas[0]; 
-          cmpB.value = turmas[1]; 
-        }
-
-        cmpToggle.disabled = turmas.length < 2;
-        cmpArea.classList.toggle('hidden', !(cmpToggle.checked && turmas.length>=2));
-
-        updateAll();
+        processData();
         showNotification(`Dados de ${MATERIA_ATUAL === 'matematica' ? 'Matemática' : 'Português'} carregados!`, 'success');
       }catch(err){ 
         console.error(err); 
         showError('Não foi possível obter os dados. '+err.message); 
         showNotification('Erro ao carregar dados', 'error');
+      } finally {
+        hideLoading();
       }
+    }
+    
+    function processData() {
+      const turmas = [...new Set(DATASET.map(r=>r.Turma).filter(Boolean))].filter(t=>String(t).trim().toLowerCase()!=='total');
+      TURMA_COLORS = new Map(turmas.map((t,i)=>[t, TURMA_PALETTE[i%TURMA_PALETTE.length]]));
+
+      fillSelect(fTurma, turmas, 'Todas');
+      fillSelect(fQuestao, [...new Set(DATASET.map(r=>r.Questao).filter(Boolean))], 'Todas');
+      fillSelect(fDescritor, [...new Set(DATASET.map(r=>r.Descritor).filter(Boolean))], 'Todos');
+
+      fillSelect(cmpA, turmas, null); 
+      fillSelect(cmpB, turmas, null);
+      if(turmas.length>=2){ 
+        cmpA.value = turmas[0]; 
+        cmpB.value = turmas[1]; 
+      }
+
+      cmpToggle.disabled = turmas.length < 2;
+      cmpArea.classList.toggle('hidden', !(cmpToggle.checked && turmas.length>=2));
+
+      updateAll();
     }
     
     function fillSelect(select, options, allLabel){
@@ -887,7 +1565,7 @@
         }
       });
 
-      // BARRAS: Média por Turma (título "Média %")
+      // BARRAS: Média por Turma (AGORA COM RÓTULOS EXTERNOS E 110% MAX)
       const byTurma = groupMean(filtered,'Turma');
       if(chartTurma) chartTurma.destroy();
       chartTurma = new Chart(document.getElementById('chartTurma'), {
@@ -905,19 +1583,62 @@
         options:{
           layout: { padding: { left: 8, right: 8, top: 12, bottom: 4 } },
           scales:{
-            x:{ ticks:{ color:textColor }, grid:{ color:gridColor } },
+            x:{ 
+              ticks:{ color:textColor }, 
+              grid:{ color:gridColor } 
+            },
             y:{ 
               beginAtZero:true, 
-              max:100, 
-              ticks:{ color:textColor, callback:v=>v+'%' }, 
+              max:110,  // Aumentado para 110%
+              ticks:{ 
+                color:textColor, 
+                callback: function(value) {
+                  if (value <= 100) {
+                    return value + '%';
+                  }
+                  return ''; // Não mostra valores acima de 100%
+                },
+                stepSize: 20
+              }, 
               grid:{ color:gridColor } 
             }
           },
           plugins:{
             legend:{ display:false },
-            title:{ display:true, text:'Média %', color:textColor, font:{ size:12, weight:'600' }, padding:{ bottom:6 } }
+            title:{ display:true, text:'Média %', color:textColor, font:{ size:12, weight:'600' }, padding:{ bottom:6 } },
+            // Plugin para rótulos de dados - posicionamento externo
+            datalabels: {
+              color: function(context) {
+                // Cor contrastante com o fundo
+                const isDark = document.documentElement.classList.contains('dark');
+                return isDark ? '#e5e7eb' : '#111827';
+              },
+              anchor: 'end',
+              align: 'top',
+              offset: 8,
+              formatter: function(value) {
+                return value.toFixed(1) + '%';
+              },
+              font: {
+                weight: 'bold',
+                size: 12
+              },
+              // Efeito de fundo para melhor legibilidade
+              backgroundColor: function(context) {
+                const isDark = document.documentElement.classList.contains('dark');
+                return isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+              },
+              borderRadius: 4,
+              padding: {
+                top: 4,
+                bottom: 4,
+                left: 6,
+                right: 6
+              }
+            }
           }
-        }
+        },
+        plugins: [ChartDataLabels] // Registrar o plugin para este gráfico
       });
 
       // GAUGE principal (cor por faixa)
@@ -981,6 +1702,9 @@
       const pAlto = filtered.length ? (c.Alto||0)/filtered.length : 0;
       kpiAlto.textContent = nfPct.format(pAlto);
       kpiAtualizado.textContent = UPDATED_AT ? new Date(UPDATED_AT).toLocaleString('pt-BR') : '—';
+      
+      // Atualizar mini-gráficos
+      updateMiniCharts();
     }
     
     function updateAll(){ 
@@ -1193,8 +1917,21 @@
     }
 
     // Init
-    updateMateriaUI();
-    loadData();
+    function init() {
+      updateMateriaUI();
+      
+      // Configurar todas as novas funcionalidades
+      setupKeyboardShortcuts();
+      setupGlobalSearch();
+      setupFilterTemplates();
+      setupAnotacoes();
+      setupFocusMode();
+      
+      loadData();
+    }
+
+    // Inicializar
+    init();
   </script>
 </body>
 </html>
